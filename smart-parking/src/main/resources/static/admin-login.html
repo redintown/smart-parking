@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Smart Parking Management System</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/admin-login.css">
+</head>
+<body>
+
+    <!-- Main Login Container -->
+    <div class="login-container">
+        <!-- Left Side - Illustration/Graphics -->
+        <div class="login-left">
+            <div class="illustration-wrapper">
+                <!-- Animated Background Elements -->
+                <div class="bg-shapes">
+                    <div class="shape shape-1"></div>
+                    <div class="shape shape-2"></div>
+                    <div class="shape shape-3"></div>
+                </div>
+                
+                <!-- Main Illustration Content -->
+                <div class="illustration-content">
+                    <div class="logo-large">
+                        <div class="logo-icon">
+                            <i class="fas fa-parking"></i>
+                        </div>
+                        <h1>Smart Parking</h1>
+                        <p class="tagline">Intelligent Parking Management</p>
+                    </div>
+                    
+                    <!-- Parking Visual Elements -->
+                    <div class="parking-visual">
+                        <div class="parking-slot slot-1">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="parking-slot slot-2">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                        <div class="parking-slot slot-3">
+                            <i class="fas fa-car"></i>
+                        </div>
+                        <div class="parking-slot slot-4">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Secure Access</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Real-time Analytics</span>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-cog"></i>
+                            <span>Full Control</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Login Form -->
+        <div class="login-right">
+            <div class="login-card">
+                <!-- Back to Main Button -->
+                <a href="index.html" class="back-link">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Main</span>
+                </a>
+
+                <!-- Auth Tabs -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login" onclick="switchAuthTab('login')">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Sign In</span>
+                    </button>
+                    <button class="auth-tab" data-tab="signup" onclick="switchAuthTab('signup')">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Sign Up</span>
+                    </button>
+                </div>
+
+                <!-- Login Form -->
+                <div class="form-wrapper" id="loginFormWrapper">
+                    <div class="form-header">
+                        <h2>Welcome Back</h2>
+                        <p>Sign in to access the admin dashboard</p>
+                    </div>
+
+                    <form id="loginForm" class="login-form" onsubmit="handleLogin(event)">
+                        <!-- Username/Email Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-user"></i>
+                                <input 
+                                    type="text" 
+                                    id="username" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="username"
+                                >
+                                <label for="username" class="input-label">Username or Email</label>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-lock"></i>
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="current-password"
+                                >
+                                <label for="password" class="input-label">Password</label>
+                                <button 
+                                    type="button" 
+                                    class="password-toggle" 
+                                    id="passwordToggle"
+                                    onclick="togglePassword()"
+                                    aria-label="Toggle password visibility"
+                                >
+                                    <i class="fas fa-eye" id="passwordIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Remember Me & Forgot Password -->
+                        <div class="form-options">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="rememberMe">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">Remember me</span>
+                            </label>
+                            <a href="#" class="forgot-link">Forgot password?</a>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div class="error-message" id="errorMessage" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="errorText"></span>
+                        </div>
+
+                        <!-- Success Message -->
+                        <div class="success-message" id="successMessage" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Login successful! Redirecting...</span>
+                        </div>
+
+                        <!-- Login Button -->
+                        <button type="submit" class="login-button" id="loginButton">
+                            <span class="button-text">Sign In</span>
+                            <span class="button-loader" id="buttonLoader" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Signup Form -->
+                <div class="form-wrapper" id="signupFormWrapper" style="display: none;">
+                    <div class="form-header">
+                        <h2>Create Account</h2>
+                        <p>Register to access the admin dashboard</p>
+                    </div>
+
+                    <form id="signupForm" class="login-form" onsubmit="handleSignup(event)">
+                        <!-- Full Name Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-user"></i>
+                                <input 
+                                    type="text" 
+                                    id="fullName" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="name"
+                                >
+                                <label for="fullName" class="input-label">Full Name</label>
+                            </div>
+                        </div>
+
+                        <!-- Email Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-envelope"></i>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="email"
+                                >
+                                <label for="email" class="input-label">Email Address</label>
+                            </div>
+                        </div>
+
+                        <!-- Username Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-at"></i>
+                                <input 
+                                    type="text" 
+                                    id="signupUsername" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="username"
+                                >
+                                <label for="signupUsername" class="input-label">Username</label>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-lock"></i>
+                                <input 
+                                    type="password" 
+                                    id="signupPassword" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="new-password"
+                                >
+                                <label for="signupPassword" class="input-label">Password</label>
+                                <button 
+                                    type="button" 
+                                    class="password-toggle" 
+                                    id="signupPasswordToggle"
+                                    onclick="toggleSignupPassword()"
+                                    aria-label="Toggle password visibility"
+                                >
+                                    <i class="fas fa-eye" id="signupPasswordIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Confirm Password Field -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-lock"></i>
+                                <input 
+                                    type="password" 
+                                    id="confirmPassword" 
+                                    class="form-input" 
+                                    placeholder=" "
+                                    required 
+                                    autocomplete="new-password"
+                                >
+                                <label for="confirmPassword" class="input-label">Confirm Password</label>
+                            </div>
+                        </div>
+
+                        <!-- Role Selection -->
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-user-tag"></i>
+                                <select id="role" class="form-input" required>
+                                    <option value="">Select Role</option>
+                                    <option value="OPERATOR">Operator</option>
+                                    <option value="ADMIN">Admin</option>
+                                </select>
+                                <label for="role" class="input-label select-label">Role</label>
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div class="error-message" id="signupErrorMessage" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="signupErrorText"></span>
+                        </div>
+
+                        <!-- Success Message -->
+                        <div class="success-message" id="signupSuccessMessage" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Registration successful! Redirecting...</span>
+                        </div>
+
+                        <!-- Signup Button -->
+                        <button type="submit" class="login-button" id="signupButton">
+                            <span class="button-text">Create Account</span>
+                            <span class="button-loader" id="signupButtonLoader" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="form-footer">
+                    <p>&copy; 2024 Smart Parking System. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="admin-login.js"></script>
+</body>
+</html>

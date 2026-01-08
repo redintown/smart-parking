@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking Lot System</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Header Section -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-parking"></i>
+                    <h1>Smart Parking Lot</h1>
+                </div>
+                <p class="subtitle">Intelligent Vehicle Management System</p>
+                <div class="header-actions">
+                    <a href="admin-login.html" class="admin-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Admin Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <main class="dashboard">
+            <!-- Park Vehicle Card -->
+            <div class="card park-card">
+                <div class="card-header">
+                    <div class="card-icon park-icon">
+                        <i class="fas fa-car-side"></i>
+                    </div>
+                    <h2>Park Vehicle</h2>
+                    <p class="card-description">Enter your license plate to park your vehicle</p>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Vehicle Type Selection -->
+                    <div class="input-group">
+                        <label>
+                            <i class="fas fa-car"></i>
+                            Vehicle Type <span class="required">*</span>
+                        </label>
+                        <div class="vehicle-type-selector">
+                            <input type="radio" id="vehicleCar" name="vehicleType" value="CAR" required>
+                            <label for="vehicleCar" class="vehicle-type-option">
+                                <span class="vehicle-icon">
+                                    <i class="fas fa-car-side"></i>
+                                </span>
+                                <span class="vehicle-name">Car</span>
+                            </label>
+                            
+                            <input type="radio" id="vehicleBike" name="vehicleType" value="BIKE" required>
+                            <label for="vehicleBike" class="vehicle-type-option">
+                                <span class="vehicle-icon">
+                                    <i class="fas fa-motorcycle"></i>
+                                </span>
+                                <span class="vehicle-name">Bike</span>
+                            </label>
+                            
+                            <input type="radio" id="vehicleMicrobus" name="vehicleType" value="MICROBUS" required>
+                            <label for="vehicleMicrobus" class="vehicle-type-option">
+                                <span class="vehicle-icon">
+                                    <i class="fas fa-van-shuttle"></i>
+                                </span>
+                                <span class="vehicle-name">Microbus</span>
+                            </label>
+                            
+                            <input type="radio" id="vehicleTruck" name="vehicleType" value="TRUCK" required>
+                            <label for="vehicleTruck" class="vehicle-type-option">
+                                <span class="vehicle-icon">
+                                    <i class="fas fa-truck"></i>
+                                </span>
+                                <span class="vehicle-name">Truck</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="parkPlate">
+                            <i class="fas fa-id-card"></i>
+                            License Plate Number
+                        </label>
+                        <input 
+                            type="text" 
+                            id="parkPlate" 
+                            placeholder="e.g., ABC-1234"
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+                    
+                    <button class="btn btn-primary" id="parkBtn" onclick="parkVehicle()">
+                        <i class="fas fa-parking"></i>
+                        <span>Park Vehicle</span>
+                        <div class="btn-loader" id="parkLoader"></div>
+                    </button>
+                    
+                    <!-- Alert Message for Park -->
+                    <div class="alert" id="parkAlert"></div>
+                </div>
+            </div>
+
+            <!-- Exit Vehicle Card -->
+            <div class="card exit-card">
+                <div class="card-header">
+                    <div class="card-icon exit-icon">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </div>
+                    <h2>Exit Vehicle</h2>
+                    <p class="card-description">Enter slot number to exit the parking lot</p>
+                </div>
+                
+                <div class="card-body">
+                    <div class="input-group">
+                        <label for="exitSlot">
+                            <i class="fas fa-th-large"></i>
+                            Slot Number
+                        </label>
+                        <input 
+                            type="number" 
+                            id="exitSlot" 
+                            placeholder="e.g., 1, 2, 3..."
+                            min="1"
+                            max="20"
+                            autocomplete="off"
+                        >
+                    </div>
+                    
+                    <button class="btn btn-secondary" id="exitBtn" onclick="exitVehicleBySlot()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Exit Vehicle</span>
+                        <div class="btn-loader" id="exitLoader"></div>
+                    </button>
+                    
+                    <!-- Alert Message for Exit -->
+                    <div class="alert" id="exitAlert"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Parking Slots Visualization -->
+        <section class="slots-section">
+            <div class="card slots-card">
+                <div class="card-header">
+                    <div class="card-icon slots-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h2>Parking Lot Status</h2>
+                    <p class="card-description">Real-time visualization of parking slots</p>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Legend -->
+                    <div class="slots-legend">
+                        <div class="legend-item">
+                            <div class="legend-color available"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color occupied"></div>
+                            <span>Occupied</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Slots Grid -->
+                    <div class="slots-grid" id="slotsGrid">
+                        <!-- Slots will be dynamically generated here -->
+                    </div>
+                    
+                    <!-- Refresh Button -->
+                    <button class="btn btn-refresh" id="refreshSlotsBtn" onclick="loadSlots()">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Refresh Status</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Parking Slip Section -->
+        <section class="slip-section" id="slipSection" style="display: none;">
+            <div class="slip-card-wrapper">
+                <div class="slip-card" id="slipCard">
+                    <div class="slip-header">
+                        <div class="slip-title">
+                            <i class="fas fa-ticket-alt"></i>
+                            <span>Parking Slip</span>
+                        </div>
+                        <div class="slip-meta">
+                            <span class="slip-brand">Smart Parking Lot</span>
+                        </div>
+                    </div>
+                    <div class="slip-body">
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-car-side"></i> Vehicle Type</div>
+                            <div class="slip-value" id="slipVehicleType">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-id-card"></i> License Plate</div>
+                            <div class="slip-value" id="slipLicensePlate">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-clock"></i> Entry Time</div>
+                            <div class="slip-value" id="slipEntryTime">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-th-large"></i> Slot Number</div>
+                            <div class="slip-value" id="slipSlotNumber">—</div>
+                        </div>
+                    </div>
+                    <div class="slip-footer no-print">
+                        <button class="btn btn-print" id="printSlipBtn" onclick="printSlip()">
+                            <i class="fas fa-print"></i>
+                            <span>Print Slip</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Exit Parking Slip Section -->
+        <section class="slip-section exit-slip-section" id="exitSlipSection" style="display: none;">
+            <div class="slip-card-wrapper">
+                <div class="slip-card exit-slip-card" id="exitSlipCard">
+                    <div class="slip-header exit-slip-header">
+                        <div class="slip-title">
+                            <i class="fas fa-receipt"></i>
+                            <span>Parking Exit Receipt</span>
+                        </div>
+                        <div class="slip-meta">
+                            <span class="slip-brand">Smart Parking Lot</span>
+                        </div>
+                    </div>
+                    <div class="slip-body">
+                        <!-- Entry Details Section -->
+                        <div class="slip-section-title">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Entry Details</span>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-car-side"></i> Vehicle Type</div>
+                            <div class="slip-value" id="exitSlipVehicleType">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-id-card"></i> License Plate</div>
+                            <div class="slip-value" id="exitSlipLicensePlate">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-th-large"></i> Slot Number</div>
+                            <div class="slip-value" id="exitSlipSlotNumber">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-clock"></i> Entry Time</div>
+                            <div class="slip-value" id="exitSlipEntryTime">—</div>
+                        </div>
+                        
+                        <!-- Exit Details Section -->
+                        <div class="slip-section-title">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Exit Details</span>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-clock"></i> Exit Time</div>
+                            <div class="slip-value" id="exitSlipExitTime">—</div>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-hourglass-half"></i> Duration</div>
+                            <div class="slip-value" id="exitSlipDuration">—</div>
+                        </div>
+                        
+                        <!-- Charge Summary Section -->
+                        <div class="slip-section-title charge-title">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>Charge Summary</span>
+                        </div>
+                        <div class="slip-row">
+                            <div class="slip-label"><i class="fas fa-clock"></i> Billable Hours</div>
+                            <div class="slip-value" id="exitSlipBillableHours">—</div>
+                        </div>
+                        <div class="slip-row charge-row">
+                            <div class="slip-label"><i class="fas fa-tag"></i> Total Charge</div>
+                            <div class="slip-value charge-value" id="exitSlipCharge">—</div>
+                        </div>
+                    </div>
+                    <div class="slip-footer no-print">
+                        <button class="btn btn-print" id="printExitSlipBtn" onclick="printExitSlip()">
+                            <i class="fas fa-print"></i>
+                            <span>Print Exit Receipt</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 Smart Parking Lot System. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+    <script src="slots.js"></script>
+</body>
+</html>

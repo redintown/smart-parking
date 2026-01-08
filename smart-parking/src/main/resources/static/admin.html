@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Smart Parking Lot</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="dark-mode">
+    <!-- Login/Signup Modal -->
+    <div id="loginModal" class="modal">
+        <div class="auth-container">
+            <div class="auth-card">
+                <!-- Back to Main Button -->
+                <div class="auth-back-button">
+                    <a href="index.html" class="btn-back-to-main">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Main Page</span>
+                    </a>
+                </div>
+
+                <!-- Brand Header -->
+                <div class="auth-brand">
+                    <div class="brand-logo">
+                        <i class="fas fa-parking"></i>
+                    </div>
+                    <h1>Smart Parking Lot</h1>
+                    <p>Administrative Dashboard</p>
+                </div>
+
+                <!-- Tab Switcher -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="loginTabBtn" onclick="switchAuthTab('login')">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Login</span>
+                    </button>
+                    <button class="auth-tab" id="signupTabBtn" onclick="switchAuthTab('signup')">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Sign Up</span>
+                    </button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="loginFormContainer" class="auth-form-container active">
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="username">
+                                <i class="fas fa-user"></i>
+                                Username
+                            </label>
+                            <input type="text" id="username" class="form-control" required autocomplete="username" placeholder="Enter your username">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">
+                                <i class="fas fa-lock"></i>
+                                Password
+                            </label>
+                            <input type="password" id="password" class="form-control" required autocomplete="current-password" placeholder="Enter your password">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Sign In</span>
+                        </button>
+                    </form>
+                    <div class="auth-footer">
+                        <p><i class="fas fa-info-circle"></i> Default credentials: <strong>admin/admin123</strong> or <strong>operator/operator123</strong></p>
+                    </div>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="signupFormContainer" class="auth-form-container">
+                    <form id="signupForm" onsubmit="handleSignup(event)">
+                        <div class="form-group">
+                            <label for="signupUsername">
+                                <i class="fas fa-user"></i>
+                                Username
+                            </label>
+                            <input type="text" id="signupUsername" class="form-control" required autocomplete="username" placeholder="Choose a username" minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupPassword">
+                                <i class="fas fa-lock"></i>
+                                Password
+                            </label>
+                            <input type="password" id="signupPassword" class="form-control" required autocomplete="new-password" placeholder="Create a password" minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupFullName">
+                                <i class="fas fa-id-card"></i>
+                                Full Name
+                            </label>
+                            <input type="text" id="signupFullName" class="form-control" autocomplete="name" placeholder="Your full name">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupEmail">
+                                <i class="fas fa-envelope"></i>
+                                Email
+                            </label>
+                            <input type="email" id="signupEmail" class="form-control" autocomplete="email" placeholder="your.email@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupRole">
+                                <i class="fas fa-user-tag"></i>
+                                Role
+                            </label>
+                            <select id="signupRole" class="form-control">
+                                <option value="OPERATOR">Operator</option>
+                                <option value="ADMIN">Administrator</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">
+                            <i class="fas fa-user-plus"></i>
+                            <span>Create Account</span>
+                        </button>
+                    </form>
+                    <div class="auth-footer">
+                        <p><i class="fas fa-shield-alt"></i> Your account will be created and you'll be automatically logged in.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Container -->
+    <div class="admin-container" id="adminContainer" style="display: none;">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="logo">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <h1>Admin Dashboard</h1>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="btn-icon" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                    <a href="index.html" class="nav-link">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Main</span>
+                    </a>
+                    <button class="btn-icon" id="logoutBtn" onclick="handleLogout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                    <div class="header-time" id="currentTime"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="admin-nav">
+            <button class="nav-tab active" onclick="showTab('dashboard')">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('slots')">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>Slot Visualization</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('history')">
+                <i class="fas fa-history"></i>
+                <span>Vehicle History</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('charges')">
+                <i class="fas fa-dollar-sign"></i>
+                <span>Charge Management</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('analytics')">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('override')">
+                <i class="fas fa-tools"></i>
+                <span>Manual Override</span>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Dashboard Tab -->
+            <div id="dashboardTab" class="tab-content active">
+                <!-- Summary Cards -->
+                <section class="summary-section">
+                    <div class="summary-grid">
+                        <div class="summary-card total-slots">
+                            <div class="card-icon">
+                                <i class="fas fa-parking"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Total Parking Slots</h3>
+                                <div class="card-value" id="totalSlots">0</div>
+                                <p class="card-label">All available slots</p>
+                            </div>
+                        </div>
+                        <div class="summary-card available-slots">
+                            <div class="card-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Available Slots</h3>
+                                <div class="card-value" id="availableSlots">0</div>
+                                <p class="card-label">Ready for parking</p>
+                            </div>
+                        </div>
+                        <div class="summary-card occupied-slots">
+                            <div class="card-icon">
+                                <i class="fas fa-car"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Occupied Slots</h3>
+                                <div class="card-value" id="occupiedSlots">0</div>
+                                <p class="card-label">Currently in use</p>
+                            </div>
+                        </div>
+                        <div class="summary-card vehicles-parked">
+                            <div class="card-icon">
+                                <i class="fas fa-car-side"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Currently Parked</h3>
+                                <div class="card-value" id="currentlyParked">0</div>
+                                <p class="card-label">Vehicles in lot</p>
+                            </div>
+                        </div>
+                        <div class="summary-card vehicles-today">
+                            <div class="card-icon">
+                                <i class="fas fa-calendar-day"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Vehicles Today</h3>
+                                <div class="card-value" id="vehiclesToday">0</div>
+                                <p class="card-label">Total entries today</p>
+                            </div>
+                        </div>
+                        <div class="summary-card revenue-today">
+                            <div class="card-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Today's Revenue</h3>
+                                <div class="card-value" id="todayRevenue">৳0.00</div>
+                                <p class="card-label">Total earnings today</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quick Stats -->
+                <section class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-chart-bar"></i>
+                                <h2>Vehicle Type Distribution</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-icon" style="background: rgba(255, 140, 66, 0.1); color: #FF8C42;">
+                                        <i class="fas fa-car-side"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="carsParked">0</div>
+                                        <div class="stat-label">Cars</div>
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon" style="background: rgba(255, 140, 66, 0.1); color: #FF8C42;">
+                                        <i class="fas fa-motorcycle"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="bikesParked">0</div>
+                                        <div class="stat-label">Bikes</div>
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon" style="background: rgba(255, 140, 66, 0.1); color: #FF8C42;">
+                                        <i class="fas fa-van-shuttle"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="microbusesParked">0</div>
+                                        <div class="stat-label">Microbuses</div>
+                                    </div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-icon" style="background: rgba(255, 140, 66, 0.1); color: #FF8C42;">
+                                        <i class="fas fa-truck"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="trucksParked">0</div>
+                                        <div class="stat-label">Trucks</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-history"></i>
+                                <h2>Recent Activity</h2>
+                            </div>
+                            <div class="card-header-right">
+                                <button class="btn-icon" onclick="loadActivity()">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-list" id="activityList"></div>
+                            <div class="activity-empty" id="activityEmpty" style="display: none;">
+                                <i class="fas fa-inbox"></i>
+                                <p>No recent activity</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Slot Visualization Tab -->
+            <div id="slotsTab" class="tab-content">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <h2>Parking Slot Visualization</h2>
+                        </div>
+                        <div class="card-header-right">
+                            <div class="legend">
+                                <div class="legend-item">
+                                    <div class="legend-color available"></div>
+                                    <span>Available</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color occupied"></div>
+                                    <span>Occupied</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color overdue"></div>
+                                    <span>Overdue</span>
+                                </div>
+                            </div>
+                            <button class="btn-icon" onclick="loadSlots()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="slots-grid" id="slotsGrid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle History Tab -->
+            <div id="historyTab" class="tab-content">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <i class="fas fa-history"></i>
+                            <h2>Vehicle Activity & History</h2>
+                        </div>
+                        <div class="card-header-right">
+                            <button class="btn btn-secondary" onclick="exportHistory('pdf')">
+                                <i class="fas fa-file-pdf"></i>
+                                Export PDF
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportHistory('excel')">
+                                <i class="fas fa-file-excel"></i>
+                                Export Excel
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filters -->
+                        <div class="filters-section">
+                            <div class="filter-group">
+                                <label>Date Range</label>
+                                <input type="date" id="startDate" class="form-control">
+                                <span>to</span>
+                                <input type="date" id="endDate" class="form-control">
+                            </div>
+                            <div class="filter-group">
+                                <label>Vehicle Type</label>
+                                <select id="filterVehicleType" class="form-control">
+                                    <option value="">All Types</option>
+                                    <option value="CAR">Car</option>
+                                    <option value="BIKE">Bike</option>
+                                    <option value="MICROBUS">Microbus</option>
+                                    <option value="TRUCK">Truck</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Slot Number</label>
+                                <input type="number" id="filterSlotNumber" class="form-control" placeholder="All slots" min="1" max="20">
+                            </div>
+                            <div class="filter-group">
+                                <button class="btn btn-primary" onclick="applyHistoryFilters()">
+                                    <i class="fas fa-filter"></i>
+                                    Apply Filters
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearHistoryFilters()">
+                                    <i class="fas fa-times"></i>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <!-- History Table -->
+                        <div class="table-container">
+                            <table class="data-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Vehicle Number</th>
+                                        <th>Vehicle Type</th>
+                                        <th>Slot Number</th>
+                                        <th>Entry Time</th>
+                                        <th>Exit Time</th>
+                                        <th>Duration</th>
+                                        <th>Charge</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charge Management Tab -->
+            <div id="chargesTab" class="tab-content">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <i class="fas fa-dollar-sign"></i>
+                            <h2>Parking Charge & Rule Management</h2>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="charges-info">
+                            <div class="info-box">
+                                <i class="fas fa-info-circle"></i>
+                                <p><strong>Minimum Charge Rule:</strong> Any vehicle entering must pay at least 1 hour charge even if parked for 1 minute.</p>
+                            </div>
+                        </div>
+                        <div class="charges-grid" id="chargesGrid">
+                            <!-- Charges will be loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div id="analyticsTab" class="tab-content">
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-chart-line"></i>
+                                <h2>Revenue Analytics</h2>
+                            </div>
+                            <div class="card-header-right">
+                                <select class="period-select" id="analyticsPeriod" onchange="loadAnalytics()">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-clock"></i>
+                                <h2>Peak Hours</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="peakHoursChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Override Tab -->
+            <div id="overrideTab" class="tab-content">
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h2>Force Exit Vehicle</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="forceExitSlot">Slot Number</label>
+                                <input type="number" id="forceExitSlot" class="form-control" min="1" max="20" required>
+                            </div>
+                            <button class="btn btn-danger" onclick="forceExitVehicle()">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Force Exit
+                            </button>
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-edit"></i>
+                                <h2>Update License Plate</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="updateSlotNumber">Slot Number</label>
+                                <input type="number" id="updateSlotNumber" class="form-control" min="1" max="20" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newLicensePlate">New License Plate</label>
+                                <input type="text" id="newLicensePlate" class="form-control" required>
+                            </div>
+                            <button class="btn btn-warning" onclick="updateLicensePlate()">
+                                <i class="fas fa-save"></i>
+                                Update
+                            </button>
+                        </div>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-exchange-alt"></i>
+                                <h2>Change Slot</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="changeFromSlot">From Slot</label>
+                                <input type="number" id="changeFromSlot" class="form-control" min="1" max="20" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="changeToSlot">To Slot</label>
+                                <input type="number" id="changeToSlot" class="form-control" min="1" max="20" required>
+                            </div>
+                            <button class="btn btn-info" onclick="changeSlot()">
+                                <i class="fas fa-arrow-right"></i>
+                                Change Slot
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>&copy; 2024 Smart Parking Lot System - Admin Dashboard</p>
+        </footer>
+    </div>
+
+    <!-- Slot Detail Modal -->
+    <div id="slotModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Slot Details</h2>
+                <button class="modal-close" onclick="closeSlotModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="slotModalBody">
+                <!-- Slot details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- JavaScript -->
+    <script src="admin.js"></script>
+</body>
+</html>
