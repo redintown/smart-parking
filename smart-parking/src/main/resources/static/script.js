@@ -160,42 +160,87 @@ function showSlip(slipData) {
 
 /**
  * Prints the parking slip (Entry Slip)
+ * Uses CSS @media print to hide everything except the slip
  */
 function printSlip() {
-    const entrySlipSection = document.getElementById('slipSection');
-    const exitSlipSection = document.getElementById('exitSlipSection');
+    console.log('printSlip() called');
     
-    if (!entrySlipSection) {
-        console.error('Entry slip section not found');
+    const slipSection = document.getElementById('slipSection');
+    const exitSlipSection = document.getElementById('exitSlipSection');
+    const slipCard = document.getElementById('slipCard');
+    
+    if (!slipSection) {
+        console.error('Slip section not found');
+        alert('No slip data available to print. Please park a vehicle first.');
         return;
     }
     
-    // Hide exit slip
+    if (!slipCard) {
+        console.error('Slip card not found');
+        alert('No slip data available to print. Please park a vehicle first.');
+        return;
+    }
+    
+    // Check if slip has data
+    const hasData = slipCard.querySelector('.slip-value') && 
+                    slipCard.querySelector('.slip-value').textContent.trim() !== '—';
+    
+    if (!hasData) {
+        console.warn('Slip appears to have no data');
+        alert('No slip data available to print. Please park a vehicle first.');
+        return;
+    }
+    
+    console.log('Slip data found, preparing to print...');
+    
+    // Ensure slip is visible (but can be off-screen)
+    const originalDisplay = slipSection.style.display;
+    const originalVisibility = slipSection.style.visibility;
+    const originalPosition = slipSection.style.position;
+    const originalLeft = slipSection.style.left;
+    
+    slipSection.style.display = 'block';
+    slipSection.style.visibility = 'visible';
+    slipSection.style.position = 'relative';
+    slipSection.style.left = 'auto';
+    
+    // Hide exit slip if visible
     if (exitSlipSection) {
+        exitSlipSection.classList.remove('print-active');
         exitSlipSection.style.display = 'none';
     }
     
-    // Ensure entry slip is visible
-    entrySlipSection.style.display = 'block';
+    // Add print-active class to entry slip
+    slipSection.classList.add('print-active');
     
-    // Add print class for styling
-    entrySlipSection.classList.add('print-active');
-    if (exitSlipSection) {
-        exitSlipSection.classList.remove('print-active');
-    }
+    console.log('Print classes applied, triggering print dialog...');
     
     // Small delay to ensure DOM is updated
-    setTimeout(() => {
+    setTimeout(function() {
         window.print();
         
         // Clean up after print dialog closes
-        setTimeout(() => {
-            entrySlipSection.classList.remove('print-active');
+        setTimeout(function() {
+            slipSection.classList.remove('print-active');
+            // Restore original styles if they were different
+            if (originalDisplay === 'none') {
+                slipSection.style.display = originalDisplay;
+            }
+            if (originalVisibility) {
+                slipSection.style.visibility = originalVisibility;
+            }
+            if (originalPosition) {
+                slipSection.style.position = originalPosition;
+            }
+            if (originalLeft) {
+                slipSection.style.left = originalLeft;
+            }
             if (exitSlipSection) {
                 exitSlipSection.style.display = '';
             }
+            console.log('Print cleanup completed');
         }, 100);
-    }, 100);
+    }, 200);
 }
 
 // ============================================
@@ -545,42 +590,87 @@ function showExitSlip(exitData) {
 }
 /**
  * Prints the exit slip
+ * Uses CSS @media print to hide everything except the slip
  */
 function printExitSlip() {
-    const entrySlipSection = document.getElementById('slipSection');
+    console.log('printExitSlip() called');
+    
     const exitSlipSection = document.getElementById('exitSlipSection');
+    const slipSection = document.getElementById('slipSection');
+    const exitSlipCard = document.getElementById('exitSlipCard');
     
     if (!exitSlipSection) {
         console.error('Exit slip section not found');
+        alert('No receipt data available to print. Please exit a vehicle first.');
         return;
     }
     
-    // Hide entry slip
-    if (entrySlipSection) {
-        entrySlipSection.style.display = 'none';
+    if (!exitSlipCard) {
+        console.error('Exit slip card not found');
+        alert('No receipt data available to print. Please exit a vehicle first.');
+        return;
     }
+    
+    // Check if slip has data
+    const hasData = exitSlipCard.querySelector('.slip-value') && 
+                    exitSlipCard.querySelector('.slip-value').textContent.trim() !== '—';
+    
+    if (!hasData) {
+        console.warn('Exit slip appears to have no data');
+        alert('No receipt data available to print. Please exit a vehicle first.');
+        return;
+    }
+    
+    console.log('Exit slip data found, preparing to print...');
     
     // Ensure exit slip is visible
-    exitSlipSection.style.display = 'block';
+    const originalDisplay = exitSlipSection.style.display;
+    const originalVisibility = exitSlipSection.style.visibility;
+    const originalPosition = exitSlipSection.style.position;
+    const originalLeft = exitSlipSection.style.left;
     
-    // Add print class for styling
-    exitSlipSection.classList.add('print-active');
-    if (entrySlipSection) {
-        entrySlipSection.classList.remove('print-active');
+    exitSlipSection.style.display = 'block';
+    exitSlipSection.style.visibility = 'visible';
+    exitSlipSection.style.position = 'relative';
+    exitSlipSection.style.left = 'auto';
+    
+    // Hide entry slip if visible
+    if (slipSection) {
+        slipSection.classList.remove('print-active');
+        slipSection.style.display = 'none';
     }
     
+    // Add print-active class to exit slip
+    exitSlipSection.classList.add('print-active');
+    
+    console.log('Print classes applied, triggering print dialog...');
+    
     // Small delay to ensure DOM is updated
-    setTimeout(() => {
+    setTimeout(function() {
         window.print();
         
         // Clean up after print dialog closes
-        setTimeout(() => {
+        setTimeout(function() {
             exitSlipSection.classList.remove('print-active');
-            if (entrySlipSection) {
-                entrySlipSection.style.display = '';
+            // Restore original styles if they were different
+            if (originalDisplay === 'none') {
+                exitSlipSection.style.display = originalDisplay;
             }
+            if (originalVisibility) {
+                exitSlipSection.style.visibility = originalVisibility;
+            }
+            if (originalPosition) {
+                exitSlipSection.style.position = originalPosition;
+            }
+            if (originalLeft) {
+                exitSlipSection.style.left = originalLeft;
+            }
+            if (slipSection) {
+                slipSection.style.display = '';
+            }
+            console.log('Print cleanup completed');
         }, 100);
-    }, 100);
+    }, 200);
 }
 
 // ============================================

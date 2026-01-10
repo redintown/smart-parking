@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
 public interface ParkingRecordRepository
         extends JpaRepository<ParkingRecord, Long> {
     
@@ -52,12 +53,32 @@ public interface ParkingRecordRepository
     /**
      * Finds records for today
      */
-    @Query("SELECT p FROM ParkingRecord p WHERE DATE(p.entryTime) = CURRENT_DATE")
-    List<ParkingRecord> findTodayRecords();
+    @Query("""
+        SELECT p FROM ParkingRecord p
+        WHERE p.entryTime >= :start
+          AND p.entryTime < :end
+    """)
+    List<ParkingRecord> findTodayRecords(
+        @Param("start") LocalDateTime start,
+        @Param("end") LocalDateTime end
+    );
+    
     
     /**
      * Calculates today's revenue
      */
-    @Query("SELECT COALESCE(SUM(p.charge), 0) FROM ParkingRecord p WHERE DATE(p.exitTime) = CURRENT_DATE AND p.exitTime IS NOT NULL")
-    Double calculateTodayRevenue();
+/*    @Query("SELECT COALESCE(SUM(p.charge), 0) FROM ParkingRecord p WHERE DATE(p.exitTime) = CURRENT_DATE AND p.exitTime IS NOT NULL")
+    Double calculateTodayRevenue();*/
+    @Query("""
+    SELECT COALESCE(SUM(p.charge), 0)
+    FROM ParkingRecord p
+    WHERE p.exitTime >= :start
+      AND p.exitTime < :end
+""")
+    Double calculateTodayRevenue(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+
 }

@@ -889,19 +889,15 @@ input:focus-visible {
         display: none !important;
     }
     
-    /* Hide everything by default */
-    body * {
+    /* Hide all non-slip elements */
+    .header,
+    .dashboard,
+    .slots-section,
+    .footer,
+    .card:not(.slip-card),
+    .alert {
         display: none !important;
         visibility: hidden !important;
-    }
-    
-    /* Show only the active slip section */
-    .slip-section.print-active,
-    .slip-section.print-active *,
-    .exit-slip-section.print-active,
-    .exit-slip-section.print-active * {
-        display: block !important;
-        visibility: visible !important;
     }
     
     /* Hide non-active slip sections */
@@ -909,6 +905,46 @@ input:focus-visible {
     .exit-slip-section:not(.print-active) {
         display: none !important;
         visibility: hidden !important;
+    }
+    
+    /* Show only the active slip section and all its children */
+    .slip-section.print-active,
+    .exit-slip-section.print-active {
+        display: block !important;
+        visibility: visible !important;
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Ensure all children of print-active slip are visible */
+    .slip-section.print-active *,
+    .exit-slip-section.print-active * {
+        visibility: visible !important;
+    }
+    
+    /* Explicitly show slip card elements */
+    .print-active .slip-card-wrapper,
+    .print-active .slip-card,
+    .print-active .slip-header,
+    .print-active .slip-body,
+    .print-active .slip-row,
+    .print-active .slip-label,
+    .print-active .slip-value,
+    .print-active .slip-section-title {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Flexbox elements in print */
+    .print-active .slip-header,
+    .print-active .slip-body,
+    .print-active .slip-row,
+    .print-active .slip-label {
+        display: flex !important;
     }
     
     /* Specific slip card styling */
@@ -919,7 +955,7 @@ input:focus-visible {
         top: auto !important;
         width: 100% !important;
         max-width: 100% !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         padding: 20px !important;
         box-shadow: none !important;
         border: 2px dashed #999 !important;
@@ -930,8 +966,17 @@ input:focus-visible {
         break-after: avoid-page !important;
         height: auto !important;
         min-height: auto !important;
-        max-height: 100vh !important;
+        max-height: none !important;
         overflow: visible !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    .print-active .slip-card-wrapper {
+        display: block !important;
+        visibility: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
     /* Ensure only one slip per page */

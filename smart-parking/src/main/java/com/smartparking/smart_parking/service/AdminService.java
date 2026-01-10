@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 @Service
 public class AdminService {
@@ -121,13 +121,13 @@ public class AdminService {
         // Count vehicles parked today
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
         
         List<ParkingRecord> todayRecords = recordRepo.findByDateRange(startOfDay, endOfDay);
         int vehiclesParkedToday = todayRecords.size();
         
         // Calculate today's revenue
-        Double todayRevenue = recordRepo.calculateTodayRevenue();
+        Double todayRevenue = recordRepo.calculateTodayRevenue(startOfDay, endOfDay);
         if (todayRevenue == null) {
             todayRevenue = 0.0;
         }
