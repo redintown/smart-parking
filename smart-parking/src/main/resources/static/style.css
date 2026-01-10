@@ -916,8 +916,9 @@ input:focus-visible {
         left: auto !important;
         top: auto !important;
         width: 100% !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         padding: 0 !important;
+        text-align: center !important;
     }
     
     /* Ensure all children of print-active slip are visible */
@@ -1045,10 +1046,189 @@ input:focus-visible {
         visibility: hidden !important;
     }
     
-    /* Optimize page settings */
+    /* Optimize page settings for receipt slip size (80mm / 3.15 inches / 302px) */
     @page {
         size: auto;
-        margin: 0.5cm;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Receipt slip container - 80mm width (standard thermal paper) */
+    .print-active .slip-card-wrapper {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 auto !important;
+        padding: 5mm 3mm !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Receipt slip card - compact design for thermal printer */
+    .print-active #slipCard,
+    .print-active #exitSlipCard {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 8px 6px !important;
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+        font-size: 9px !important;
+        line-height: 1.4 !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Compact header - receipt style */
+    .print-active .slip-header,
+    .print-active .exit-slip-header {
+        padding: 10px 6px 8px 6px !important;
+        background: #fff !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        text-align: center !important;
+        margin-bottom: 8px !important;
+        display: block !important;
+    }
+    
+    .print-active .slip-title {
+        font-size: 11px !important;
+        font-weight: bold !important;
+        margin-bottom: 4px !important;
+        text-transform: uppercase !important;
+        text-align: center !important;
+        display: block !important;
+    }
+    
+    .print-active .slip-title span {
+        display: block !important;
+    }
+    
+    .print-active .slip-title i {
+        display: none !important;
+    }
+    
+    .print-active .slip-meta {
+        font-size: 8px !important;
+        opacity: 1 !important;
+        color: #000 !important;
+        text-align: center !important;
+        margin-top: 2px !important;
+        display: block !important;
+    }
+    
+    /* Compact body */
+    .print-active .slip-body {
+        padding: 0 !important;
+        display: block !important;
+    }
+    
+    /* Compact rows - receipt style */
+    .print-active .slip-row {
+        padding: 4px 0 !important;
+        margin-bottom: 3px !important;
+        border: none !important;
+        border-bottom: 1px dashed #999 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    .print-active .slip-row:last-of-type {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Compact labels and values - receipt style */
+    .print-active .slip-label {
+        font-size: 8px !important;
+        color: #000 !important;
+        font-weight: normal !important;
+        gap: 0 !important;
+        flex: 1 1 auto !important;
+        text-align: left !important;
+        display: inline-block !important;
+    }
+    
+    .print-active .slip-label span {
+        display: inline !important;
+    }
+    
+    .print-active .slip-label i {
+        display: none !important;
+    }
+    
+    .print-active .slip-value {
+        font-size: 8px !important;
+        color: #000 !important;
+        font-weight: bold !important;
+        text-align: right !important;
+        flex: 0 0 auto !important;
+        margin-left: 8px !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Section titles - receipt style */
+    .print-active .slip-section-title {
+        font-size: 9px !important;
+        font-weight: bold !important;
+        margin-top: 8px !important;
+        margin-bottom: 5px !important;
+        padding-bottom: 3px !important;
+        border-bottom: 1px solid #000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+        text-align: left !important;
+        display: block !important;
+    }
+    
+    .print-active .slip-section-title span {
+        display: inline !important;
+    }
+    
+    .print-active .slip-section-title i {
+        display: none !important;
+    }
+    
+    .print-active .slip-section-title:first-child {
+        margin-top: 0 !important;
+    }
+    
+    /* Charge section - receipt style */
+    .print-active .charge-title {
+        margin-top: 8px !important;
+        border-bottom: 2px solid #000 !important;
+        font-size: 10px !important;
+    }
+    
+    .print-active .charge-row {
+        border-top: 2px solid #000 !important;
+        border-bottom: 2px solid #000 !important;
+        padding: 6px 0 !important;
+        margin-top: 6px !important;
+        margin-bottom: 6px !important;
+        background: transparent !important;
+    }
+    
+    .print-active .charge-row .slip-label {
+        font-size: 9px !important;
+        font-weight: bold !important;
+    }
+    
+    .print-active .charge-value {
+        font-size: 11px !important;
+        font-weight: bold !important;
+        color: #000 !important;
+    }
+    
+    /* Hide icons in print */
+    .print-active .slip-label i,
+    .print-active .slip-title i,
+    .print-active .slip-section-title i {
+        display: none !important;
     }
     
     /* Prevent any page breaks after the slip */
@@ -1058,10 +1238,18 @@ input:focus-visible {
         break-after: avoid-page !important;
     }
     
-    /* Ensure no overflow */
+    /* Ensure no overflow and center content */
     html, body {
         overflow: visible !important;
         height: auto !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Center the slip wrapper on page */
+    .print-active .slip-card-wrapper {
+        text-align: left !important;
     }
 }
 
