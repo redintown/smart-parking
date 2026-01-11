@@ -1254,6 +1254,296 @@ input:focus-visible {
 }
 
 /* ============================================
+   PARKING GATES / BARRIERS
+   ============================================ */
+
+.gates-section {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.6s ease-out;
+    animation-delay: 0.25s;
+    animation-fill-mode: both;
+}
+
+.gates-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 1rem;
+}
+
+.gate-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.gate-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+}
+
+.gate-label i {
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.entry-gate-wrapper .gate-label {
+    color: #10B981;
+}
+
+.entry-gate-wrapper .gate-label i {
+    color: #10B981;
+}
+
+.exit-gate-wrapper .gate-label {
+    color: #EF4444;
+}
+
+.exit-gate-wrapper .gate-label i {
+    color: #EF4444;
+}
+
+.gate-container {
+    position: relative;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(251, 146, 60, 0.02) 100%);
+    border-radius: var(--radius-md);
+    border: 2px dashed rgba(249, 115, 22, 0.2);
+}
+
+.gate-pole {
+    position: absolute;
+    width: 12px;
+    height: 80px;
+    background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+    border-radius: 6px;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.3), 
+        0 2px 4px rgba(0, 0, 0, 0.2),
+        inset 0 -2px 4px rgba(255, 255, 255, 0.1);
+    z-index: 2;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.gate-pole::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #475569 0%, #334155 100%);
+    border-radius: 50%;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.gate-pole-left {
+    left: 20%;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.gate-pole-right {
+    right: 20%;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.gate-barrier {
+    position: absolute;
+    width: 60%;
+    height: 16px;
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    border-radius: 8px;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.2),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+        0 0 0 2px rgba(249, 115, 22, 0.1);
+    transform-origin: center center;
+    transform: rotate(0deg);
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 1rem;
+    border: 1px solid rgba(234, 88, 12, 0.3);
+}
+
+.barrier-stripe {
+    width: 8px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+/* Gate Lights */
+.gate-light {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #64748B;
+    box-shadow: 0 0 8px rgba(100, 116, 139, 0.5);
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.gate-light-left {
+    left: 18%;
+    top: 30%;
+}
+
+.gate-light-right {
+    right: 18%;
+    top: 30%;
+}
+
+/* Gate Open State - Barrier Lifts Up */
+.gate-barrier.open {
+    transform: rotate(90deg) translateY(-30px);
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 
+        0 6px 12px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.2),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Gate Opening Animation */
+@keyframes gateOpen {
+    0% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(45deg) translateY(-15px);
+    }
+    100% {
+        transform: rotate(90deg) translateY(-30px);
+    }
+}
+
+/* Gate Closing Animation */
+@keyframes gateClose {
+    0% {
+        transform: rotate(90deg) translateY(-30px);
+    }
+    50% {
+        transform: rotate(45deg) translateY(-15px);
+    }
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+.gate-barrier.opening {
+    animation: gateOpen 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.gate-barrier.closing {
+    animation: gateClose 0.6s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+}
+
+/* Active Gate Lights */
+.gate-container.active .gate-light {
+    background: #10B981;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+    animation: lightPulse 1s ease-in-out infinite;
+}
+
+.exit-gate-wrapper .gate-container.active .gate-light {
+    background: #EF4444;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes lightPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+/* Gate Status Indicator */
+.gate-status {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gate-status.closed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #DC2626;
+}
+
+.gate-status.open {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+}
+
+/* Responsive Gates */
+@media (max-width: 768px) {
+    .gates-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .gate-container {
+        height: 100px;
+    }
+    
+    .gate-barrier {
+        width: 70%;
+    }
+}
+
+@media (max-width: 480px) {
+    .gate-wrapper {
+        padding: 1rem;
+    }
+    
+    .gate-container {
+        height: 90px;
+    }
+    
+    .gate-barrier {
+        width: 75%;
+        height: 14px;
+    }
+    
+    .gate-pole {
+        width: 10px;
+        height: 60px;
+    }
+}
+
+/* ============================================
    PARKING SLOTS VISUALIZATION
    ============================================ */
 
@@ -1361,9 +1651,476 @@ input:focus-visible {
     background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
 }
 
+/* Overstay Warning Styles */
+.slot-card.overstayed {
+    border-color: #F59E0B;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(251, 191, 36, 0.04) 100%);
+    animation: overstayPulse 3s ease-in-out infinite;
+}
+
+.slot-card.overstayed::before {
+    background: linear-gradient(90deg, #F59E0B 0%, #FBBF24 100%);
+    animation: overstayGlow 3s ease-in-out infinite;
+}
+
+/* Overstay Pulse Animation - Subtle breathing effect */
+@keyframes overstayPulse {
+    0%, 100% {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                    0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05),
+                    0 0 0 4px rgba(245, 158, 11, 0.2);
+    }
+}
+
+/* Overstay Glow Animation - Top border glow */
+@keyframes overstayGlow {
+    0%, 100% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    }
+}
+
+/* Overstay Warning Icon */
+.overstay-warning {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+    animation: warningBlink 2s ease-in-out infinite;
+    z-index: 5;
+    cursor: help;
+}
+
+@keyframes warningBlink {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.85;
+        transform: scale(1.05);
+    }
+}
+
+/* Overstay Label */
+.overstay-label {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    z-index: 5;
+}
+
+/* ============================================
+   AI-STYLE PARKING SUGGESTION
+   ============================================ */
+
+/* Suggested Slot Highlight */
+.slot-card.suggested-slot {
+    border-color: #F97316;
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(251, 146, 60, 0.06) 100%);
+    animation: suggestionPulse 2s ease-in-out infinite;
+    position: relative;
+    z-index: 10;
+}
+
+.slot-card.suggested-slot::before {
+    background: linear-gradient(90deg, #F97316 0%, #FB923C 100%);
+    opacity: 1;
+    animation: suggestionGlow 2s ease-in-out infinite;
+}
+
+/* Suggestion Pulse Animation */
+@keyframes suggestionPulse {
+    0%, 100% {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                    0 0 0 0 rgba(249, 115, 22, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05),
+                    0 0 0 8px rgba(249, 115, 22, 0.2);
+        transform: scale(1.02);
+    }
+}
+
+/* Suggestion Glow Animation */
+@keyframes suggestionGlow {
+    0%, 100% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 rgba(249, 115, 22, 0);
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 12px rgba(249, 115, 22, 0.8);
+    }
+}
+
+/* Suggestion Label */
+.suggestion-label {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 8px rgba(249, 115, 22, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    z-index: 20;
+    animation: labelFloat 2s ease-in-out infinite;
+    white-space: nowrap;
+}
+
+.suggestion-label i {
+    font-size: 0.875rem;
+    animation: iconSpin 3s linear infinite;
+}
+
+@keyframes labelFloat {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-4px);
+    }
+}
+
+@keyframes iconSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Suggestion Arrow */
+.suggestion-arrow {
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #F97316;
+    font-size: 1.5rem;
+    animation: arrowBounce 1.5s ease-in-out infinite;
+    z-index: 15;
+    filter: drop-shadow(0 2px 4px rgba(249, 115, 22, 0.4));
+}
+
+@keyframes arrowBounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    50% {
+        transform: translateX(-50%) translateY(-8px);
+        opacity: 0.8;
+    }
+}
+
+/* Suggestion Reason Text */
+.suggestion-reason {
+    position: absolute;
+    bottom: -32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 20;
+    animation: reasonFadeIn 0.5s ease-out;
+    max-width: 200px;
+    text-align: center;
+}
+
+.suggestion-reason::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid rgba(15, 23, 42, 0.95);
+}
+
+@keyframes reasonFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Ensure suggested slot is visible above others */
+.slot-card.suggested-slot {
+    z-index: 10;
+}
+
+.slot-card.suggested-slot:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 12px 20px -4px rgba(0, 0, 0, 0.15), 0 6px 10px -2px rgba(0, 0, 0, 0.1),
+                0 0 0 8px rgba(249, 115, 22, 0.3);
+}
+
+/* Suggestion Banner in Park Card */
+.suggestion-banner {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(251, 146, 60, 0.05) 100%);
+    border: 2px solid rgba(249, 115, 22, 0.3);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    animation: bannerSlideIn 0.4s ease-out;
+}
+
+@keyframes bannerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.suggestion-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.suggestion-banner-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 8px rgba(249, 115, 22, 0.3);
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 8px rgba(249, 115, 22, 0.3);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 6px 12px rgba(249, 115, 22, 0.5);
+    }
+}
+
+.suggestion-banner-text {
+    flex: 1;
+}
+
+.suggestion-banner-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.suggestion-banner-message {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+}
+
+.suggestion-banner-note {
+    font-size: 0.7rem;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.suggestion-banner-note i {
+    font-size: 0.75rem;
+}
+
+.suggestion-banner-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.suggestion-banner-close:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+}
+
+/* Manual Suggestion Button */
+.btn-suggestion {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    color: white;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1rem;
+}
+
+.btn-suggestion:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+}
+
+.btn-suggestion i {
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* Responsive adjustments for suggestion */
+@media (max-width: 768px) {
+    .suggestion-label {
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+    }
+    
+    .suggestion-arrow {
+        font-size: 1.25rem;
+        top: -35px;
+    }
+    
+    .suggestion-reason {
+        font-size: 0.65rem;
+        padding: 0.4rem 0.6rem;
+        max-width: 150px;
+    }
+    
+    .suggestion-banner {
+        padding: 0.75rem;
+    }
+    
+    .suggestion-banner-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+}
+
+/* Tooltip for Overstay Details */
+.slot-card[data-overstay-minutes] {
+    position: relative;
+}
+
+.slot-card[data-overstay-minutes]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(15, 23, 42, 0.95);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    pointer-events: none;
+    animation: tooltipFadeIn 0.2s ease-out;
+}
+
+.slot-card[data-overstay-minutes]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.25rem;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(15, 23, 42, 0.95);
+    z-index: 101;
+    pointer-events: none;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
 .slot-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
+}
+
+.slot-card.overstayed:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05),
+                0 0 0 4px rgba(245, 158, 11, 0.3);
 }
 
 .slot-number {
@@ -1436,6 +2193,144 @@ input:focus-visible {
 
 .btn-refresh.loading i {
     animation: spin 0.8s linear infinite;
+}
+
+/* ============================================
+   VEHICLE ANIMATION STYLES
+   ============================================ */
+
+/* Vehicle icon container inside slot */
+.vehicle-icon-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.vehicle-icon-animated {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.vehicle-icon-animated.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Entry animation - vehicle moves from outside into slot */
+@keyframes vehicleEnter {
+    0% {
+        opacity: 0;
+        transform: translateX(-200px) translateY(-50px) scale(0.3);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translateX(0) translateY(-10px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+/* Exit animation - vehicle moves out of slot */
+@keyframes vehicleExit {
+    0% {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: translateX(50px) translateY(-20px) scale(0.8);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(200px) translateY(-50px) scale(0.3);
+    }
+}
+
+/* Bounce effect when parking completes */
+@keyframes parkBounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+/* Glow effect for occupied slots */
+@keyframes slotGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+}
+
+/* Animation classes */
+.slot-card.animating-entry {
+    animation: slotGlow 0.8s ease-out;
+}
+
+.slot-card.animating-exit {
+    animation: slotGlow 0.6s ease-out;
+}
+
+.vehicle-entering {
+    animation: vehicleEnter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.vehicle-exiting {
+    animation: vehicleExit 1s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+}
+
+.vehicle-parked {
+    animation: parkBounce 0.5s ease-out;
+}
+
+/* Smooth state transition for slots */
+.slot-card {
+    transition: background 0.4s ease, border-color 0.4s ease, transform 0.3s ease;
+}
+
+.slot-card.state-changing {
+    pointer-events: none;
+}
+
+/* Prevent slot content from interfering with animations */
+.slot-card.state-changing .slot-number,
+.slot-card.state-changing .slot-status,
+.slot-card.state-changing .slot-info {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+/* Vehicle icon colors by type */
+.vehicle-icon-animated.car {
+    color: #3B82F6;
+}
+
+.vehicle-icon-animated.bike {
+    color: #8B5CF6;
+}
+
+.vehicle-icon-animated.microbus {
+    color: #F59E0B;
+}
+
+.vehicle-icon-animated.truck {
+    color: #EF4444;
 }
 
 /* Responsive adjustments for slots */

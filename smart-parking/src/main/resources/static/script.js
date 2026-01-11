@@ -276,8 +276,18 @@ async function parkVehicle() {
     setButtonLoading(buttonId, true);
     
     try {
-        // Make API call using relative URL with vehicle type
-        const response = await fetch(`/parking/park?licensePlate=${encodeURIComponent(licensePlate)}&vehicleType=${encodeURIComponent(vehicleType)}`, {
+        // Check if there's a suggested slot from AI recommendation
+        const suggestedSlot = typeof getSuggestedSlot === 'function' ? getSuggestedSlot() : null;
+        
+        // Build API URL with optional preferred slot
+        let apiUrl = `/parking/park?licensePlate=${encodeURIComponent(licensePlate)}&vehicleType=${encodeURIComponent(vehicleType)}`;
+        if (suggestedSlot) {
+            apiUrl += `&preferredSlot=${suggestedSlot}`;
+            console.log(`Using AI suggested slot: ${suggestedSlot}`);
+        }
+        
+        // Make API call using relative URL with vehicle type and optional preferred slot
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -312,17 +322,86 @@ async function parkVehicle() {
             if (vehicleTypeRadio) {
                 vehicleTypeRadio.checked = false;
             }
-            // Refresh slots visualization
-            if (typeof loadSlots === 'function') {
-                loadSlots();
+            
+            // Extract slot number
+            const slotNumber = parseSlotNumber(data);
+            
+            // Clear any slot suggestion after successful parking
+            if (typeof clearSlotSuggestion === 'function') {
+                clearSlotSuggestion();
             }
+            
+            // Trigger entry gate animation sequence
+            if (typeof openEntryGate === 'function') {
+                openEntryGate(() => {
+                    // After gate opens, refresh slots and trigger vehicle animation
+                    if (typeof loadSlots === 'function') {
+                        loadSlots();
+                    }
+                    
+                    // Trigger vehicle entry animation after gate opens
+                    if (slotNumber) {
+                        try {
+                            const tryAnimation = (attempts = 0) => {
+                                if (attempts > 10) {
+                                    console.warn('Animation failed: slot element not found after multiple attempts');
+                                    // Close gate even if animation fails
+                                    if (typeof closeEntryGate === 'function') {
+                                        setTimeout(() => closeEntryGate(), 500);
+                                    }
+                                    return;
+                                }
+                                
+                                try {
+                                    const slotElement = document.getElementById(`slot-${slotNumber}`);
+                                    if (slotElement && typeof animateVehicleEntry === 'function') {
+                                        animateVehicleEntry(parseInt(slotNumber), vehicleType);
+                                        // Close gate after vehicle enters
+                                        setTimeout(() => {
+                                            if (typeof closeEntryGate === 'function') {
+                                                closeEntryGate();
+                                            }
+                                        }, 1500);
+                                    } else {
+                                        // Retry after a short delay
+                                        setTimeout(() => tryAnimation(attempts + 1), 100);
+                                    }
+                                } catch (animError) {
+                                    console.warn('Animation error:', animError);
+                                }
+                            };
+                            
+                            // Start trying after a short delay to allow DOM to update
+                            setTimeout(() => tryAnimation(), 300);
+                        } catch (error) {
+                            console.warn('Error setting up animation:', error);
+                            // Close gate on error
+                            if (typeof closeEntryGate === 'function') {
+                                setTimeout(() => closeEntryGate(), 500);
+                            }
+                        }
+                    } else {
+                        // Close gate if no slot number
+                        setTimeout(() => {
+                            if (typeof closeEntryGate === 'function') {
+                                closeEntryGate();
+                            }
+                        }, 1000);
+                    }
+                });
+            } else {
+                // Fallback: just refresh slots if gate functions don't exist
+                if (typeof loadSlots === 'function') {
+                    loadSlots();
+                }
+            }
+            
             // Show parking slip
-            const slotNumber = parseSlotNumber(data) || '—';
             const slipData = {
                 vehicleType: getVehicleTypeDisplayName(vehicleType),
                 licensePlate: licensePlate,
                 entryTime: formatEntryTime(new Date()),
-                slotNumber: slotNumber
+                slotNumber: slotNumber || '—'
             };
             showSlip(slipData);
         }
@@ -420,9 +499,47 @@ async function exitVehicleBySlot() {
             slotNumberInput.value = '';
         }
         
-        // Refresh slots visualization
-        if (typeof loadSlots === 'function') {
-            loadSlots();
+        // Trigger exit gate animation sequence
+        if (exitData.slotNumber) {
+            if (typeof openExitGate === 'function') {
+                openExitGate(() => {
+                    // After gate opens, trigger vehicle exit animation
+                    if (typeof animateVehicleExit === 'function') {
+                        try {
+                            animateVehicleExit(exitData.slotNumber);
+                        } catch (error) {
+                            console.warn('Error during exit animation:', error);
+                        }
+                    }
+                    
+                    // Close gate after vehicle exits
+                    setTimeout(() => {
+                        if (typeof closeExitGate === 'function') {
+                            closeExitGate();
+                        }
+                        // Refresh slots after gate closes
+                        if (typeof loadSlots === 'function') {
+                            loadSlots();
+                        }
+                    }, 1500);
+                });
+            } else {
+                // Fallback: just trigger exit animation
+                if (typeof animateVehicleExit === 'function') {
+                    try {
+                        animateVehicleExit(exitData.slotNumber);
+                    } catch (error) {
+                        console.warn('Error during exit animation:', error);
+                    }
+                }
+                
+                // Refresh slots visualization after animation
+                if (typeof loadSlots === 'function') {
+                    setTimeout(() => {
+                        loadSlots();
+                    }, 1000);
+                }
+            }
         }
         
         // Show exit slip
@@ -744,7 +861,321 @@ window.addEventListener('error', function(event) {
     console.error('JavaScript error:', event.error);
 });
 
+// ============================================
+// VEHICLE ANIMATION FUNCTIONS
+// ============================================
+
+/**
+ * Gets the vehicle type icon class (helper for animations)
+ * Uses the function from slots.js if available, otherwise defines it here
+ * @param {string} vehicleType - The vehicle type (CAR, BIKE, MICROBUS, TRUCK)
+ * @returns {string} - Font Awesome icon class
+ */
+function getVehicleTypeIconForAnimation(vehicleType) {
+    // Use the function from slots.js if available
+    if (typeof getVehicleTypeIcon === 'function') {
+        return getVehicleTypeIcon(vehicleType);
+    }
+    
+    // Fallback implementation
+    if (!vehicleType) return 'fas fa-car-side';
+    
+    switch (vehicleType.toUpperCase()) {
+        case 'CAR':
+            return 'fas fa-car-side';
+        case 'BIKE':
+            return 'fas fa-motorcycle';
+        case 'MICROBUS':
+            return 'fas fa-van-shuttle';
+        case 'TRUCK':
+            return 'fas fa-truck';
+        default:
+            return 'fas fa-car-side';
+    }
+}
+
+/**
+ * Animates a vehicle entering a parking slot
+ * @param {number} slotNumber - The slot number where vehicle is parking
+ * @param {string} vehicleType - The type of vehicle (CAR, BIKE, MICROBUS, TRUCK)
+ */
+function animateVehicleEntry(slotNumber, vehicleType) {
+    try {
+        if (!slotNumber) {
+            console.warn('animateVehicleEntry: slotNumber is required');
+            return;
+        }
+        
+        const slotElement = document.getElementById(`slot-${slotNumber}`);
+        if (!slotElement) {
+            console.warn(`Slot element not found: slot-${slotNumber}. Slots may not be loaded yet.`);
+            // Try again after a short delay
+            setTimeout(() => {
+                try {
+                    const retryElement = document.getElementById(`slot-${slotNumber}`);
+                    if (retryElement) {
+                        animateVehicleEntry(slotNumber, vehicleType);
+                    }
+                } catch (error) {
+                    console.warn('Error retrying animation:', error);
+                }
+            }, 300);
+            return;
+        }
+        
+        // Get vehicle icon class
+        const vehicleIconClass = getVehicleTypeIconForAnimation(vehicleType);
+        const vehicleTypeClass = vehicleType ? vehicleType.toLowerCase() : 'car';
+        
+        // Remove existing vehicle icon if any
+        const existingIconContainer = slotElement.querySelector('.vehicle-icon-container');
+        if (existingIconContainer) {
+            existingIconContainer.remove();
+        }
+        
+        // Create vehicle icon container
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'vehicle-icon-container';
+        
+        const vehicleIcon = document.createElement('i');
+        vehicleIcon.className = `${vehicleIconClass} vehicle-icon-animated vehicle-entering ${vehicleTypeClass}`;
+        
+        iconContainer.appendChild(vehicleIcon);
+        slotElement.appendChild(iconContainer);
+        
+        // Add animation classes to slot
+        slotElement.classList.add('animating-entry', 'state-changing');
+        
+        // Update slot state gradually
+        setTimeout(() => {
+            try {
+                slotElement.classList.remove('available');
+                slotElement.classList.add('occupied');
+            } catch (error) {
+                console.warn('Error updating slot state:', error);
+            }
+        }, 400);
+        
+        // Complete animation
+        setTimeout(() => {
+            try {
+                vehicleIcon.classList.remove('vehicle-entering');
+                vehicleIcon.classList.add('vehicle-parked', 'visible');
+                slotElement.classList.remove('animating-entry', 'state-changing');
+            } catch (error) {
+                console.warn('Error completing animation:', error);
+            }
+        }, 1200);
+    } catch (error) {
+        console.error('Error in animateVehicleEntry:', error);
+    }
+}
+
+/**
+ * Animates a vehicle exiting a parking slot
+ * @param {number} slotNumber - The slot number where vehicle is exiting
+ */
+function animateVehicleExit(slotNumber) {
+    try {
+        if (!slotNumber) {
+            console.warn('animateVehicleExit: slotNumber is required');
+            return;
+        }
+        
+        const slotElement = document.getElementById(`slot-${slotNumber}`);
+        if (!slotElement) {
+            console.warn(`Slot element not found: slot-${slotNumber}`);
+            return;
+        }
+        
+        const iconContainer = slotElement.querySelector('.vehicle-icon-container');
+        if (!iconContainer) {
+            // If no icon exists, just update the slot state
+            try {
+                slotElement.classList.remove('occupied');
+                slotElement.classList.add('available');
+            } catch (error) {
+                console.warn('Error updating slot state:', error);
+            }
+            return;
+        }
+        
+        const vehicleIcon = iconContainer.querySelector('.vehicle-icon-animated');
+        if (!vehicleIcon) {
+            return;
+        }
+        
+        // Add animation classes
+        slotElement.classList.add('animating-exit', 'state-changing');
+        vehicleIcon.classList.remove('vehicle-parked', 'visible');
+        vehicleIcon.classList.add('vehicle-exiting');
+        
+        // Update slot state gradually
+        setTimeout(() => {
+            try {
+                slotElement.classList.remove('occupied');
+                slotElement.classList.add('available');
+            } catch (error) {
+                console.warn('Error updating slot state:', error);
+            }
+        }, 300);
+        
+        // Remove icon after animation completes
+        setTimeout(() => {
+            try {
+                iconContainer.remove();
+                slotElement.classList.remove('animating-exit', 'state-changing');
+            } catch (error) {
+                console.warn('Error removing icon:', error);
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Error in animateVehicleExit:', error);
+    }
+}
+
+// ============================================
+// GATE CONTROL FUNCTIONS
+// ============================================
+
+/**
+ * Opens the entry gate barrier
+ * @param {Function} callback - Optional callback to execute after gate opens
+ */
+function openEntryGate(callback) {
+    try {
+        const barrier = document.getElementById('entryBarrier');
+        const gateContainer = document.getElementById('entryGate');
+        
+        if (!barrier || !gateContainer) {
+            console.warn('Entry gate elements not found');
+            if (callback) callback();
+            return;
+        }
+        
+        // Remove any existing classes
+        barrier.classList.remove('closing', 'open');
+        gateContainer.classList.remove('active');
+        
+        // Add opening animation
+        barrier.classList.add('opening');
+        gateContainer.classList.add('active');
+        
+        // After opening animation completes, add open class
+        setTimeout(() => {
+            barrier.classList.remove('opening');
+            barrier.classList.add('open');
+            
+            // Execute callback after gate is fully open
+            if (callback) {
+                setTimeout(() => callback(), 200);
+            }
+        }, 800);
+    } catch (error) {
+        console.error('Error opening entry gate:', error);
+        if (callback) callback();
+    }
+}
+
+/**
+ * Closes the entry gate barrier
+ */
+function closeEntryGate() {
+    try {
+        const barrier = document.getElementById('entryBarrier');
+        const gateContainer = document.getElementById('entryGate');
+        
+        if (!barrier || !gateContainer) {
+            return;
+        }
+        
+        // Remove open class and add closing animation
+        barrier.classList.remove('open', 'opening');
+        barrier.classList.add('closing');
+        
+        // After closing animation completes, remove all classes
+        setTimeout(() => {
+            barrier.classList.remove('closing', 'open');
+            gateContainer.classList.remove('active');
+        }, 600);
+    } catch (error) {
+        console.error('Error closing entry gate:', error);
+    }
+}
+
+/**
+ * Opens the exit gate barrier
+ * @param {Function} callback - Optional callback to execute after gate opens
+ */
+function openExitGate(callback) {
+    try {
+        const barrier = document.getElementById('exitBarrier');
+        const gateContainer = document.getElementById('exitGate');
+        
+        if (!barrier || !gateContainer) {
+            console.warn('Exit gate elements not found');
+            if (callback) callback();
+            return;
+        }
+        
+        // Remove any existing classes
+        barrier.classList.remove('closing', 'open');
+        gateContainer.classList.remove('active');
+        
+        // Add opening animation
+        barrier.classList.add('opening');
+        gateContainer.classList.add('active');
+        
+        // After opening animation completes, add open class
+        setTimeout(() => {
+            barrier.classList.remove('opening');
+            barrier.classList.add('open');
+            
+            // Execute callback after gate is fully open
+            if (callback) {
+                setTimeout(() => callback(), 200);
+            }
+        }, 800);
+    } catch (error) {
+        console.error('Error opening exit gate:', error);
+        if (callback) callback();
+    }
+}
+
+/**
+ * Closes the exit gate barrier
+ */
+function closeExitGate() {
+    try {
+        const barrier = document.getElementById('exitBarrier');
+        const gateContainer = document.getElementById('exitGate');
+        
+        if (!barrier || !gateContainer) {
+            return;
+        }
+        
+        // Remove open class and add closing animation
+        barrier.classList.remove('open', 'opening');
+        barrier.classList.add('closing');
+        
+        // After closing animation completes, remove all classes
+        setTimeout(() => {
+            barrier.classList.remove('closing', 'open');
+            gateContainer.classList.remove('active');
+        }, 600);
+    } catch (error) {
+        console.error('Error closing exit gate:', error);
+    }
+}
+
 // Make functions available globally
+window.parkVehicle = parkVehicle;
 window.printSlip = printSlip;
 window.printExitSlip = printExitSlip;
 window.exitVehicleBySlot = exitVehicleBySlot;
+window.animateVehicleEntry = animateVehicleEntry;
+window.animateVehicleExit = animateVehicleExit;
+window.openEntryGate = openEntryGate;
+window.closeEntryGate = closeEntryGate;
+window.openExitGate = openExitGate;
+window.closeExitGate = closeExitGate;

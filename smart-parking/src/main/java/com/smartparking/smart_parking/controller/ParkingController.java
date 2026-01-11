@@ -24,11 +24,18 @@ public class ParkingController {
     @PostMapping("/park")
     public ResponseEntity<?> park(
             @RequestParam String licensePlate,
-            @RequestParam String vehicleType) {
+            @RequestParam String vehicleType,
+            @RequestParam(required = false) Integer preferredSlot) {
 
         try {
-            ParkingRecord record =
-                    parkingServiceDB.parkVehicle(licensePlate, vehicleType);
+            ParkingRecord record;
+            if (preferredSlot != null && preferredSlot > 0) {
+                // Try to park in the preferred slot (AI suggestion)
+                record = parkingServiceDB.parkVehicleInSlot(licensePlate, vehicleType, preferredSlot);
+            } else {
+                // Use default behavior (find first available)
+                record = parkingServiceDB.parkVehicle(licensePlate, vehicleType);
+            }
 
             String message = vehicleType + " parked at slot "
                     + record.getSlotNumber();

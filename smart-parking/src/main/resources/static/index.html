@@ -104,6 +104,32 @@
                         >
                     </div>
                     
+                    <!-- AI Suggestion Display -->
+                    <div class="suggestion-banner" id="suggestionBanner" style="display: none;">
+                        <div class="suggestion-banner-content">
+                            <div class="suggestion-banner-icon">
+                                <i class="fas fa-magic"></i>
+                            </div>
+                            <div class="suggestion-banner-text">
+                                <div class="suggestion-banner-title">Smart Suggestion</div>
+                                <div class="suggestion-banner-message" id="suggestionMessage">Loading suggestion...</div>
+                                <div class="suggestion-banner-note">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span>This slot will be used when you park</span>
+                                </div>
+                            </div>
+                            <button class="suggestion-banner-close" onclick="clearSlotSuggestion()" title="Dismiss suggestion">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Suggestion Trigger Button (for testing) -->
+                    <button class="btn btn-suggestion" id="suggestBtn" onclick="triggerSuggestion()" style="display: none;">
+                        <i class="fas fa-magic"></i>
+                        <span>Get AI Suggestion</span>
+                    </button>
+                    
                     <button class="btn btn-primary" id="parkBtn" onclick="parkVehicle()">
                         <i class="fas fa-parking"></i>
                         <span>Park Vehicle</span>
@@ -152,6 +178,49 @@
                 </div>
             </div>
         </main>
+
+        <!-- Parking Gates Section -->
+        <section class="gates-section">
+            <div class="gates-container">
+                <!-- Entry Gate -->
+                <div class="gate-wrapper entry-gate-wrapper">
+                    <div class="gate-label">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>ENTRY GATE</span>
+                    </div>
+                    <div class="gate-container" id="entryGate">
+                        <div class="gate-pole gate-pole-left"></div>
+                        <div class="gate-barrier" id="entryBarrier">
+                            <div class="barrier-stripe"></div>
+                            <div class="barrier-stripe"></div>
+                            <div class="barrier-stripe"></div>
+                        </div>
+                        <div class="gate-pole gate-pole-right"></div>
+                        <div class="gate-light gate-light-left"></div>
+                        <div class="gate-light gate-light-right"></div>
+                    </div>
+                </div>
+                
+                <!-- Exit Gate -->
+                <div class="gate-wrapper exit-gate-wrapper">
+                    <div class="gate-label">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>EXIT GATE</span>
+                    </div>
+                    <div class="gate-container" id="exitGate">
+                        <div class="gate-pole gate-pole-left"></div>
+                        <div class="gate-barrier" id="exitBarrier">
+                            <div class="barrier-stripe"></div>
+                            <div class="barrier-stripe"></div>
+                            <div class="barrier-stripe"></div>
+                        </div>
+                        <div class="gate-pole gate-pole-right"></div>
+                        <div class="gate-light gate-light-left"></div>
+                        <div class="gate-light gate-light-right"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- Parking Slots Visualization -->
         <section class="slots-section">
