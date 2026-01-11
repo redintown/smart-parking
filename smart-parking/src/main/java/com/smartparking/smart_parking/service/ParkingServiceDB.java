@@ -11,10 +11,13 @@ import com.smartparking.smart_parking.repository.VehicleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,7 @@ public class ParkingServiceDB {
 
     // ===================== STEP 5 =====================
     // ============ PARK VEHICLE (DB BASED) =============
+    @Transactional
     public ParkingRecord parkVehicle(String licensePlate, String vehicleType) {
 
         // 1. Find first free slot (check for active parking records as source of truth)
@@ -42,6 +46,7 @@ public class ParkingServiceDB {
                 .stream()
                 .filter(s -> {
                     // Check if slot has an active parking record (exit_time IS NULL)
+                    // THIS IS THE SOURCE OF TRUTH - not the slot.occupied field
                     Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndExitTimeIsNull(s.getSlotNumber());
                     // Slot is free only if there's no active record
                     return activeRecord.isEmpty();
@@ -56,22 +61,28 @@ public class ParkingServiceDB {
         vehicle.setEntryTime(LocalDateTime.now());
         vehicleRepo.save(vehicle);
 
-        // 3. Mark slot as occupied (ensure consistency)
+        // 3. Mark slot as occupied (for consistency/caching - NOT source of truth)
         slot.setOccupied(true);
         slot.setVehicle(vehicle);
         slotRepo.save(slot);
 
-        // 4. Create parking record (ENTRY SLIP) - this is the source of truth
+        // 4. Create parking record (ENTRY SLIP) - THIS IS THE SOURCE OF TRUTH
+        // The ParkingRecord table determines if a slot is occupied
         ParkingRecord record = new ParkingRecord();
         record.setLicensePlate(licensePlate);
         record.setVehicleType(vehicleType);
         record.setSlotNumber(slot.getSlotNumber());
         record.setEntryTime(vehicle.getEntryTime());
+        // exitTime is null by default (active record)
 
-        return recordRepo.save(record);
+        ParkingRecord savedRecord = recordRepo.save(record);
+        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in slot " + slot.getSlotNumber());
+        
+        return savedRecord;
     }
     
     // ============ PARK VEHICLE IN SPECIFIC SLOT (AI SUGGESTION) =============
+    @Transactional
     public ParkingRecord parkVehicleInSlot(String licensePlate, String vehicleType, int preferredSlot) {
         
         // 1. Check if preferred slot exists
@@ -101,18 +112,23 @@ public class ParkingServiceDB {
         slot.setVehicle(vehicle);
         slotRepo.save(slot);
 
-        // 5. Create parking record (ENTRY SLIP) - this is the source of truth
+        // 5. Create parking record (ENTRY SLIP) - THIS IS THE SOURCE OF TRUTH
         ParkingRecord record = new ParkingRecord();
         record.setLicensePlate(licensePlate);
         record.setVehicleType(vehicleType);
         record.setSlotNumber(slot.getSlotNumber());
         record.setEntryTime(vehicle.getEntryTime());
+        // exitTime is null by default (active record)
 
-        return recordRepo.save(record);
+        ParkingRecord savedRecord = recordRepo.save(record);
+        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in preferred slot " + slot.getSlotNumber());
+        
+        return savedRecord;
     }
 
     // ===================== STEP 6 =====================
     // ===== EXIT VEHICLE BY SLOT NUMBER (DB BASED) =====
+    @Transactional
     public ParkingRecord exitVehicleBySlot(int slotNumber) {
 
         // 1. Find slot by slot number
@@ -150,10 +166,12 @@ public class ParkingServiceDB {
         record.setCharge(totalCharge);
         recordRepo.save(record);
 
-        // 7. Free the slot (ensure consistency)
+        // 7. Free the slot (ensure consistency - sync with record)
         slot.setOccupied(false);
         slot.setVehicle(null);
         slotRepo.save(slot);
+        
+        System.out.println("DEBUG: Exited vehicle from slot " + slotNumber);
 
         return record;
     }
@@ -209,53 +227,127 @@ public class ParkingServiceDB {
 
     // ===================== STEP 8 =====================
     // ========== GET ALL SLOTS (DB BASED) ==============
+    // NOTE: ParkingRecord (with exit_time IS NULL) is the SOURCE OF TRUTH for slot occupancy
+    // The ParkingSlot table's 'occupied' field is just for caching/consistency
+    @Transactional
     public List<SlotDTO> getAllSlots() {
-        // Get all slots
-        List<ParkingSlot> allSlots = slotRepo.findAll();
-        
-        return allSlots.stream()
-                .map(slot -> {
-                    // Check for active parking record (exit_time IS NULL) - this is the source of truth
-                    Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndExitTimeIsNull(slot.getSlotNumber());
-                    
-                    if (activeRecord.isPresent()) {
-                        // Slot is occupied - get data from active parking record
-                        ParkingRecord record = activeRecord.get();
-                        
-                        // Calculate current duration
-                        LocalDateTime now = LocalDateTime.now();
-                        long durationMinutes = Duration.between(record.getEntryTime(), now).toMinutes();
-                        
-                        // Default allowed time: 2 hours (120 minutes)
-                        // Can be configured per vehicle type or globally
-                        int allowedMinutes = 120;
-                        
-                        return new SlotDTO(
-                            slot.getSlotNumber(), 
-                            true, // occupied
-                            record.getLicensePlate(), 
-                            record.getVehicleType(),
-                            record.getEntryTime(),
-                            durationMinutes,
-                            allowedMinutes
-                        );
-                    } else {
-                        // No active record - slot is empty
-                        // Ensure slot state is consistent (free the slot if it's marked as occupied)
-                        if (slot.isOccupied()) {
-                            slot.setOccupied(false);
-                            slot.setVehicle(null);
-                            slotRepo.save(slot);
-                        }
-                        return new SlotDTO(
-                            slot.getSlotNumber(), 
-                            false, // not occupied
-                            null, 
-                            null
-                        );
+        try {
+            // First, ensure all 20 slots exist in database (defensive check)
+            List<ParkingSlot> allSlots = slotRepo.findAll();
+            
+            // If slots don't exist, initialize them
+            if (allSlots.size() < 20) {
+                for (int i = 1; i <= 20; i++) {
+                    Optional<ParkingSlot> existingSlot = slotRepo.findById(i);
+                    if (existingSlot.isEmpty()) {
+                        ParkingSlot newSlot = new ParkingSlot();
+                        newSlot.setSlotNumber(i);
+                        newSlot.setOccupied(false);
+                        newSlot.setVehicle(null);
+                        slotRepo.save(newSlot);
                     }
-                })
-                .collect(Collectors.toList());
+                }
+                // Re-fetch after initialization
+                allSlots = slotRepo.findAll();
+            }
+            
+            // Get all active parking records in one query - THIS IS THE SOURCE OF TRUTH
+            // Active record = exit_time IS NULL (vehicle is still parked)
+            List<ParkingRecord> activeRecords = recordRepo.findByExitTimeIsNullOrderByEntryTimeDesc();
+            
+            System.out.println("DEBUG: Found " + activeRecords.size() + " active parking records");
+            activeRecords.forEach(record -> {
+                System.out.println("  - Slot " + record.getSlotNumber() + ": " + 
+                                 record.getLicensePlate() + " (" + record.getVehicleType() + ")");
+            });
+            
+            // Create a map of slot number -> active record for O(1) lookup
+            Map<Integer, ParkingRecord> activeRecordMap = activeRecords.stream()
+                    .collect(Collectors.toMap(
+                            ParkingRecord::getSlotNumber,
+                            record -> record,
+                            (existing, replacement) -> {
+                                // If duplicate (shouldn't happen), log warning and keep first
+                                System.err.println("WARNING: Duplicate active record for slot " + 
+                                                 existing.getSlotNumber());
+                                return existing;
+                            }
+                    ));
+            
+            // Process each slot - ParkingRecord is the source of truth
+            List<SlotDTO> result = allSlots.stream()
+                    .sorted((s1, s2) -> Integer.compare(s1.getSlotNumber(), s2.getSlotNumber()))
+                    .map(slot -> {
+                        // Check for active parking record (exit_time IS NULL) - SOURCE OF TRUTH
+                        ParkingRecord activeRecord = activeRecordMap.get(slot.getSlotNumber());
+                        
+                        if (activeRecord != null) {
+                            // Slot IS OCCUPIED - get data from active parking record
+                            
+                            // Calculate current duration
+                            LocalDateTime now = LocalDateTime.now();
+                            long durationMinutes = Duration.between(activeRecord.getEntryTime(), now).toMinutes();
+                            
+                            // Default allowed time: 2 hours (120 minutes)
+                            int allowedMinutes = 120;
+                            
+                            // Sync slot table with record (defensive update for consistency)
+                            // This ensures the slot table matches the record table
+                            if (!slot.isOccupied() || slot.getVehicle() == null) {
+                                slot.setOccupied(true);
+                                // Try to get vehicle from record's license plate
+                                Optional<VehicleEntity> vehicle = vehicleRepo.findByLicensePlate(activeRecord.getLicensePlate());
+                                if (vehicle.isPresent()) {
+                                    slot.setVehicle(vehicle.get());
+                                }
+                                slotRepo.save(slot);
+                            }
+                            
+                            return new SlotDTO(
+                                slot.getSlotNumber(), 
+                                true, // OCCUPIED - from ParkingRecord
+                                activeRecord.getLicensePlate(), 
+                                activeRecord.getVehicleType(),
+                                activeRecord.getEntryTime(),
+                                durationMinutes,
+                                allowedMinutes
+                            );
+                        } else {
+                            // No active record - slot IS EMPTY
+                            // Sync slot table (defensive update for consistency)
+                            if (slot.isOccupied() || slot.getVehicle() != null) {
+                                slot.setOccupied(false);
+                                slot.setVehicle(null);
+                                slotRepo.save(slot);
+                            }
+                            return new SlotDTO(
+                                slot.getSlotNumber(), 
+                                false, // NOT OCCUPIED - no active record
+                                null, 
+                                null,
+                                null,
+                                null,
+                                null
+                            );
+                        }
+                    })
+                    .collect(Collectors.toList());
+            
+            System.out.println("DEBUG: Returning " + result.size() + " slots, " + 
+                             result.stream().filter(SlotDTO::isOccupied).count() + " occupied");
+            
+            return result;
+        } catch (Exception e) {
+            // Log error and return empty list or fallback
+            System.err.println("CRITICAL ERROR in getAllSlots(): " + e.getMessage());
+            e.printStackTrace();
+            // Return empty slots as fallback (better than crashing)
+            List<SlotDTO> fallback = new ArrayList<>();
+            for (int i = 1; i <= 20; i++) {
+                fallback.add(new SlotDTO(i, false, null, null));
+            }
+            return fallback;
+        }
     }
 
     // ===================== DEBUG METHODS =====================

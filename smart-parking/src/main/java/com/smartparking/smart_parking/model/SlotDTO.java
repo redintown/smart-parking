@@ -20,6 +20,9 @@ public class SlotDTO {
         this.occupied = occupied;
         this.licensePlate = licensePlate;
         this.vehicleType = vehicleType;
+        this.entryTime = null;
+        this.durationMinutes = null;
+        this.allowedMinutes = null;
     }
     
     public SlotDTO(int slotNumber, boolean occupied, String licensePlate, String vehicleType, 
@@ -31,6 +34,10 @@ public class SlotDTO {
         this.entryTime = entryTime;
         this.durationMinutes = durationMinutes;
         this.allowedMinutes = allowedMinutes;
+    }
+    
+    // Default constructor for Jackson
+    public SlotDTO() {
     }
 
     public int getSlotNumber() {
