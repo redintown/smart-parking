@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - Smart Parking Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/admin-login.css">
+    <style>.dev-fallback-banner{display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;margin-bottom:1rem;background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;color:#92400E;font-size:0.9rem}.dev-fallback-banner i{flex-shrink:0}</style>
+    <!-- Supabase removed: auth uses backend only. Avoids pa.bundle.js / onUpdated errors from Supabase CDN. -->
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-left">
+            <div class="illustration-wrapper">
+                <div class="bg-shapes">
+                    <div class="shape shape-1"></div>
+                    <div class="shape shape-2"></div>
+                    <div class="shape shape-3"></div>
+                </div>
+                <div class="illustration-content">
+                    <div class="logo-large">
+                        <div class="logo-icon"><i class="fas fa-parking"></i></div>
+                        <h1>Smart Parking</h1>
+                        <p class="tagline">Verify your email</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="login-right">
+            <div class="login-card">
+                <a href="admin-login.html" class="back-link"><i class="fas fa-arrow-left"></i><span>Back to Login</span></a>
+                <div class="form-wrapper">
+                    <div class="dev-fallback-banner" id="devFallbackBanner" style="display: none;">
+                        <i class="fas fa-terminal"></i>
+                        <span>Development: SMTP is not configured. The OTP was printed in the <strong>server console</strong> (where the app is running).</span>
+                    </div>
+                    <div class="form-header">
+                        <h2>Verify Your Email</h2>
+                        <p>Enter the 6-digit OTP sent to your email</p>
+                    </div>
+                    <form id="verifyForm" class="login-form" onsubmit="return handleVerify(event);">
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-envelope"></i>
+                                <input type="email" id="verifyEmail" class="form-input" placeholder=" " required autocomplete="email">
+                                <label for="verifyEmail" class="input-label">Email</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-key"></i>
+                                <input type="text" id="verifyOtp" class="form-input" placeholder=" " required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code">
+                                <label for="verifyOtp" class="input-label">6-digit OTP</label>
+                            </div>
+                        </div>
+                        <div class="error-message" id="verifyErrorMessage" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="verifyErrorText"></span>
+                        </div>
+                        <div class="success-message" id="verifySuccessMessage" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Email verified. Redirecting to login...</span>
+                        </div>
+                        <button type="submit" class="login-button" id="verifyButton">
+                            <span class="button-text">Verify</span>
+                            <span class="button-loader" id="verifyButtonLoader" style="display: none;"><i class="fas fa-spinner fa-spin"></i></span>
+                        </button>
+                    </form>
+                </div>
+                <div class="form-footer">
+                    <p>&copy; 2026 Smart Parking System.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 2. admin-auth.js then 3. page script -->
+    <script src="admin-auth.js"></script>
+    <script src="admin-verify-otp.js"></script>
+</body>
+</html>

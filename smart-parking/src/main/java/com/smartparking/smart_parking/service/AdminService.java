@@ -1,10 +1,15 @@
 package com.smartparking.smart_parking.service;
 
+import com.smartparking.smart_parking.exception.AccountNotActivatedException;
+import com.smartparking.smart_parking.exception.EmailNotVerifiedException;
 import com.smartparking.smart_parking.model.*;
 import com.smartparking.smart_parking.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,21 +36,169 @@ public class AdminService {
     private ParkingSlotRepository slotRepo;
     
     @Autowired
+    private FloorRepository floorRepo;
+    
+    @Autowired
     private ParkingServiceDB parkingService;
+    
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired(required = false)
+    private SupabaseService supabaseService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
     
     // ===================== AUTHENTICATION =====================
     
+    /**
+     * Authenticate by username and password. Blocks if email is not verified.
+     * @throws EmailNotVerifiedException if credentials are valid but emailVerified is false
+     */
     public Admin authenticate(String username, String password) {
-        Optional<Admin> adminOpt = adminRepo.findByUsernameAndActiveTrue(username);
-        if (adminOpt.isPresent()) {
-            Admin admin = adminOpt.get();
-            // Simple password check (in production, use BCrypt or similar)
-            if (admin.getPassword().equals(password)) {
-                logAction(admin.getUsername(), "LOGIN", "Admin logged in", null);
-                return admin;
-            }
+        Optional<Admin> adminOpt = adminRepo.findByUsername(username);
+        if (adminOpt.isEmpty()) {
+            return null;
         }
-        return null;
+        Admin admin = adminOpt.get();
+        String stored = admin.getPassword();
+        boolean passwordMatches = (stored != null && stored.startsWith("$2"))
+            ? passwordEncoder.matches(password, stored)
+            : (stored != null && stored.equals(password));
+        if (!passwordMatches) {
+            return null;
+        }
+        if (!admin.isEmailVerified()) {
+            throw new EmailNotVerifiedException("Please verify your email first", admin.getEmail());
+        }
+        if (!admin.isActive()) {
+            throw new AccountNotActivatedException("Account not activated");
+        }
+        logAction(admin.getUsername(), "LOGIN", "Admin logged in", null);
+        return admin;
+    }
+    
+    /**
+     * Signup: ADMIN only. active=false, emailVerified=false.
+     * OTP is sent by Supabase via frontend signInWithOtp; backend only creates the admin.
+     * No auto-login. Frontend must call signInWithOtp then redirect to verify-email page.
+     */
+    @Transactional
+    public Admin signupAdmin(String username, String email, String password) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new RuntimeException("Username is required");
+        }
+        username = username.trim();
+        if (email == null || email.trim().isEmpty()) {
+            throw new RuntimeException("Email is required");
+        }
+        email = email.trim().toLowerCase();
+        if (password == null || password.isEmpty()) {
+            throw new RuntimeException("Password is required");
+        }
+        if (password.length() < 6) {
+            throw new RuntimeException("Password must be at least 6 characters long");
+        }
+        if (adminRepo.findByUsername(username).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
+        if (adminRepo.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already registered");
+        }
+        
+        Admin admin = new Admin();
+        admin.setUsername(username);
+        admin.setPassword(passwordEncoder.encode(password));
+        admin.setEmail(email);
+        admin.setRole("ADMIN");
+        admin.setActive(false);
+        admin.setEmailVerified(false);
+        // OTP sent by Supabase (signInWithOtp) and verified via verifyOtp; no backend OTP
+
+        Admin saved = adminRepo.save(admin);
+        logAction(username, "SIGNUP", "Admin signup, email " + email + " (Supabase OTP flow)", null);
+        return saved;
+    }
+    
+    /**
+     * Verify email with OTP. On success: emailVerified=true, active=true, OTP fields cleared.
+     */
+    @Transactional
+    public void verifyEmail(String email, String otp) {
+        if (email == null || email.trim().isEmpty() || otp == null || otp.trim().isEmpty()) {
+            throw new RuntimeException("Email and OTP are required");
+        }
+        email = email.trim().toLowerCase();
+        otp = otp.trim();
+        if (otp.length() != 6 || !otp.matches("\\d{6}")) {
+            throw new RuntimeException("Invalid OTP format");
+        }
+        
+        Admin admin = adminRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
+        if (admin.getOtpCode() == null || admin.getOtpExpiryTime() == null) {
+            throw new RuntimeException("No pending verification for this email");
+        }
+        if (!admin.getOtpCode().equals(otp)) {
+            throw new RuntimeException("Invalid OTP");
+        }
+        if (LocalDateTime.now().isAfter(admin.getOtpExpiryTime())) {
+            throw new RuntimeException("OTP has expired. Please sign up again.");
+        }
+        
+        admin.setEmailVerified(true);
+        admin.setActive(true);
+        admin.setOtpCode(null);
+        admin.setOtpExpiryTime(null);
+        adminRepo.save(admin);
+        logAction(admin.getUsername(), "VERIFY_EMAIL", "Email verified: " + email, null);
+    }
+
+    /**
+     * Confirms email as verified after Supabase verifyOtp succeeds.
+     * Validates the Supabase access token and marks the Admin as emailVerified=true, active=true.
+     */
+    @Transactional
+    public void confirmEmailVerified(String email, String supabaseAccessToken) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new RuntimeException("Email is required");
+        }
+        email = email.trim().toLowerCase();
+        if (supabaseAccessToken == null || supabaseAccessToken.trim().isEmpty()) {
+            throw new RuntimeException("Authorization token is required");
+        }
+        if (supabaseService == null) {
+            throw new RuntimeException("Supabase is not configured");
+        }
+        String tokenEmail = supabaseService.getUserEmailFromAccessToken(supabaseAccessToken.trim());
+        if (tokenEmail == null || !tokenEmail.trim().toLowerCase().equals(email)) {
+            throw new RuntimeException("Invalid or expired verification token");
+        }
+        Admin admin = adminRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
+        if (admin.isEmailVerified()) {
+            return; // already verified
+        }
+        admin.setEmailVerified(true);
+        admin.setActive(true);
+        admin.setOtpCode(null);
+        admin.setOtpExpiryTime(null);
+        adminRepo.save(admin);
+        logAction(admin.getUsername(), "VERIFY_EMAIL", "Email verified via Supabase: " + email, null);
+    }
+
+    /**
+     * Returns true if an admin exists with this email and is not yet email-verified (pending).
+     */
+    public boolean hasPendingVerification(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        return adminRepo.findByEmail(email.trim().toLowerCase())
+                .filter(a -> !a.isEmailVerified())
+                .isPresent();
     }
     
     public Admin register(String username, String password, String fullName, String email, String role) {
@@ -81,7 +234,7 @@ public class AdminService {
         // Create new admin
         Admin admin = new Admin();
         admin.setUsername(username);
-        admin.setPassword(password); // In production, hash with BCrypt
+        admin.setPassword(passwordEncoder.encode(password));
         admin.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : null);
         admin.setEmail(email != null && !email.trim().isEmpty() ? email.trim() : null);
         admin.setRole(role);
@@ -144,15 +297,29 @@ public class AdminService {
     
     // ===================== SLOT DETAILS =====================
     
-    public SlotDetailDTO getSlotDetail(int slotNumber) {
-        Optional<ParkingSlot> slotOpt = slotRepo.findById(slotNumber);
-        if (slotOpt.isEmpty()) {
-            throw new RuntimeException("Slot not found");
+    public SlotDetailDTO getSlotDetail(int slotNumber, Integer floorNumber) {
+        Optional<ParkingSlot> slotOpt;
+        if (floorNumber != null) {
+            slotOpt = slotRepo.findBySlotNumberAndFloorFloorNumber(slotNumber, floorNumber);
+        } else {
+            // Fallback: find by slot number only
+            slotOpt = slotRepo.findAll()
+                    .stream()
+                    .filter(s -> s.getSlotNumber() == slotNumber)
+                    .findFirst();
         }
+        
+        if (slotOpt.isEmpty()) {
+            throw new RuntimeException("Slot " + slotNumber + 
+                (floorNumber != null ? " on floor " + floorNumber : "") + " not found");
+        }
+        
+        ParkingSlot slot = slotOpt.get();
+        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
         
         // Slot exists, now check for active record
         Optional<ParkingRecord> activeRecord = 
-            recordRepo.findBySlotNumberAndExitTimeIsNull(slotNumber);
+            recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(slotNumber, slotFloorNumber);
         
         if (activeRecord.isPresent()) {
             ParkingRecord record = activeRecord.get();
@@ -249,11 +416,11 @@ public class AdminService {
     
     // ===================== MANUAL OVERRIDE =====================
     
-    public ParkingRecord forceExitVehicle(int slotNumber, String adminUsername) {
-        ParkingRecord record = parkingService.exitVehicleBySlot(slotNumber);
+    public ParkingRecord forceExitVehicle(int slotNumber, Integer floorNumber, String adminUsername) {
+        ParkingRecord record = parkingService.exitVehicleBySlot(slotNumber, floorNumber);
         logAction(adminUsername, "FORCE_EXIT", 
-            "Force exited vehicle from slot " + slotNumber, 
-            "{\"slotNumber\":" + slotNumber + "}");
+            "Force exited vehicle from slot " + slotNumber + (floorNumber != null ? " on floor " + floorNumber : ""), 
+            "{\"slotNumber\":" + slotNumber + ",\"floorNumber\":" + (floorNumber != null ? floorNumber : "null") + "}");
         return record;
     }
     
@@ -277,29 +444,50 @@ public class AdminService {
         return record;
     }
     
-    public ParkingRecord changeSlot(int slotNumber, int newSlotNumber, String adminUsername) {
-        Optional<ParkingRecord> recordOpt = 
-            recordRepo.findBySlotNumberAndExitTimeIsNull(slotNumber);
-        
-        if (recordOpt.isEmpty()) {
-            throw new RuntimeException("No active vehicle in slot " + slotNumber);
+    public ParkingRecord changeSlot(int slotNumber, int newSlotNumber, Integer floorNumber, String adminUsername) {
+        // Find active record by slot and floor
+        Optional<ParkingRecord> recordOpt;
+        if (floorNumber != null) {
+            recordOpt = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(slotNumber, floorNumber);
+        } else {
+            recordOpt = recordRepo.findAll()
+                    .stream()
+                    .filter(r -> r.getSlotNumber() == slotNumber && r.getExitTime() == null)
+                    .findFirst();
         }
         
-        // Check if new slot is available
-        Optional<ParkingRecord> newSlotRecord = 
-            recordRepo.findBySlotNumberAndExitTimeIsNull(newSlotNumber);
-        
-        if (newSlotRecord.isPresent()) {
-            throw new RuntimeException("Slot " + newSlotNumber + " is already occupied");
+        if (recordOpt.isEmpty()) {
+            throw new RuntimeException("No active vehicle in slot " + slotNumber + 
+                (floorNumber != null ? " on floor " + floorNumber : ""));
         }
         
         ParkingRecord record = recordOpt.get();
+        Integer recordFloorNumber = record.getFloorNumber();
+        
+        // Check if new slot is available
+        Optional<ParkingRecord> newSlotRecord = 
+            recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(newSlotNumber, recordFloorNumber);
+        
+        if (newSlotRecord.isPresent()) {
+            throw new RuntimeException("Slot " + newSlotNumber + 
+                (recordFloorNumber != null ? " on floor " + recordFloorNumber : "") + " is already occupied");
+        }
+        
         record.setSlotNumber(newSlotNumber);
         recordRepo.save(record);
         
-        // Update slot states
-        Optional<ParkingSlot> oldSlotOpt = slotRepo.findById(slotNumber);
-        Optional<ParkingSlot> newSlotOpt = slotRepo.findById(newSlotNumber);
+        // Update slot states - find by slot number and floor
+        Optional<ParkingSlot> oldSlotOpt = slotRepo.findAll()
+                .stream()
+                .filter(s -> s.getSlotNumber() == slotNumber && 
+                           (s.getFloor() != null ? s.getFloor().getFloorNumber() : null) == recordFloorNumber)
+                .findFirst();
+        
+        Optional<ParkingSlot> newSlotOpt = slotRepo.findAll()
+                .stream()
+                .filter(s -> s.getSlotNumber() == newSlotNumber &&
+                           (s.getFloor() != null ? s.getFloor().getFloorNumber() : null) == recordFloorNumber)
+                .findFirst();
         
         if (oldSlotOpt.isPresent()) {
             ParkingSlot oldSlot = oldSlotOpt.get();
@@ -331,16 +519,27 @@ public class AdminService {
             .collect(Collectors.toList());
     }
     
-    public void markSlotAvailable(int slotNumber, String adminUsername) {
-        Optional<ParkingSlot> slotOpt = slotRepo.findById(slotNumber);
+    public void markSlotAvailable(int slotNumber, Integer floorNumber, String adminUsername) {
+        Optional<ParkingSlot> slotOpt;
+        if (floorNumber != null) {
+            slotOpt = slotRepo.findBySlotNumberAndFloorFloorNumber(slotNumber, floorNumber);
+        } else {
+            slotOpt = slotRepo.findAll()
+                    .stream()
+                    .filter(s -> s.getSlotNumber() == slotNumber)
+                    .findFirst();
+        }
+        
         if (slotOpt.isEmpty()) {
-            throw new RuntimeException("Slot " + slotNumber + " not found");
+            throw new RuntimeException("Slot " + slotNumber + 
+                (floorNumber != null ? " on floor " + floorNumber : "") + " not found");
         }
         
         ParkingSlot slot = slotOpt.get();
+        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
         
         // Check if there's an active record
-        Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndExitTimeIsNull(slotNumber);
+        Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(slotNumber, slotFloorNumber);
         if (activeRecord.isPresent()) {
             throw new RuntimeException("Cannot mark slot as available. Vehicle is still parked. Use Force Exit instead.");
         }
@@ -386,6 +585,115 @@ public class AdminService {
         log.setDetails(details);
         log.setTimestamp(LocalDateTime.now());
         auditRepo.save(log);
+    }
+    
+    // ===================== FLOOR MANAGEMENT =====================
+    
+    @Transactional
+    public Floor createFloor(Integer floorNumber, String description) {
+        // Validate floor number
+        if (floorNumber == null || floorNumber < 1) {
+            throw new RuntimeException("Floor number must be a positive integer");
+        }
+        
+        // Check if floor already exists
+        if (floorRepo.existsByFloorNumber(floorNumber)) {
+            throw new RuntimeException("Floor " + floorNumber + " already exists");
+        }
+        
+        Floor floor = new Floor();
+        floor.setFloorNumber(floorNumber);
+        floor.setDescription(description);
+        
+        return floorRepo.save(floor);
+    }
+    
+    public List<Floor> getAllFloors() {
+        return floorRepo.findAll().stream()
+                .sorted((f1, f2) -> Integer.compare(f1.getFloorNumber(), f2.getFloorNumber()))
+                .collect(Collectors.toList());
+    }
+    
+    public Floor getFloorByNumber(Integer floorNumber) {
+        return floorRepo.findByFloorNumber(floorNumber)
+                .orElseThrow(() -> new RuntimeException("Floor " + floorNumber + " not found"));
+    }
+    
+    // ===================== SLOT MANAGEMENT =====================
+    
+    @Transactional
+    public List<ParkingSlot> addSlotsToFloor(Integer floorNumber, String vehicleType, int startSlotNumber, int numberOfSlots) {
+        // Validate floor exists
+        Floor floor = floorRepo.findByFloorNumber(floorNumber)
+                .orElseThrow(() -> new RuntimeException("Floor " + floorNumber + " does not exist"));
+        
+        // Validate vehicle type
+        if (vehicleType == null || vehicleType.trim().isEmpty()) {
+            throw new RuntimeException("Vehicle type is required");
+        }
+        vehicleType = vehicleType.toUpperCase();
+        
+        // Validate slot numbers
+        if (startSlotNumber < 1) {
+            throw new RuntimeException("Start slot number must be at least 1");
+        }
+        if (numberOfSlots < 1) {
+            throw new RuntimeException("Number of slots must be at least 1");
+        }
+        
+        List<ParkingSlot> createdSlots = new ArrayList<>();
+        
+        for (int i = 0; i < numberOfSlots; i++) {
+            int slotNumber = startSlotNumber + i;
+            
+            // Check if slot already exists on this floor
+            if (slotRepo.existsBySlotNumberAndFloor(slotNumber, floor)) {
+                throw new RuntimeException("Slot " + slotNumber + " already exists on floor " + floorNumber);
+            }
+            
+            ParkingSlot slot = new ParkingSlot();
+            slot.setSlotNumber(slotNumber);
+            slot.setFloor(floor);
+            slot.setVehicleType(vehicleType);
+            slot.setOccupied(false);
+            slot.setVehicle(null);
+            
+            createdSlots.add(slotRepo.save(slot));
+        }
+        
+        return createdSlots;
+    }
+    
+    public List<ParkingSlot> getSlotsByFloor(Integer floorNumber) {
+        Floor floor = floorRepo.findByFloorNumber(floorNumber)
+                .orElseThrow(() -> new RuntimeException("Floor " + floorNumber + " not found"));
+        
+        return slotRepo.findByFloorOrderBySlotNumberAsc(floor);
+    }
+    
+    @Transactional
+    public void deleteSlot(Long slotId, String adminUsername) {
+        Optional<ParkingSlot> slotOpt = slotRepo.findById(slotId);
+        if (slotOpt.isEmpty()) {
+            throw new RuntimeException("Slot not found");
+        }
+        
+        ParkingSlot slot = slotOpt.get();
+        
+        // Check if slot is occupied
+        Integer floorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
+        Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(
+            slot.getSlotNumber(), floorNumber);
+        
+        if (activeRecord.isPresent()) {
+            throw new RuntimeException("Cannot delete occupied slot. Please exit the vehicle first.");
+        }
+        
+        slotRepo.delete(slot);
+        
+        logAction(adminUsername, "DELETE_SLOT",
+            "Deleted slot " + slot.getSlotNumber() + " from floor " + floorNumber,
+            "{\"slotId\":" + slotId + ",\"slotNumber\":" + slot.getSlotNumber() + ",\"floorNumber\":" + floorNumber + "}");
     }
     
     // ===================== HELPER METHODS =====================

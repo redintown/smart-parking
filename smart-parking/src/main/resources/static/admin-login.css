@@ -360,6 +360,70 @@ body {
 }
 
 /* Auth Tabs */
+/* Login Method Tabs (Password vs OTP) */
+.login-method-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background: var(--bg-light-secondary);
+    padding: 0.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-light);
+}
+
+.method-tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-light-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.method-tab:hover {
+    color: var(--text-light-primary);
+    background: var(--bg-light-card);
+}
+
+.method-tab.active {
+    background: var(--orange-primary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.method-tab i {
+    font-size: 1rem;
+}
+
+.back-to-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 0.5rem;
+    color: var(--text-light-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 1rem;
+}
+
+.back-to-login-btn:hover {
+    background: var(--bg-light-secondary);
+    color: var(--text-light-primary);
+    border-color: var(--orange-primary);
+}
+
 .auth-tabs {
     display: flex;
     gap: 0.5rem;
@@ -402,7 +466,6 @@ body {
     background: var(--orange-primary);
     color: white;
     box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-}
     position: relative;
 }
 
@@ -455,6 +518,15 @@ body {
     font-size: 0.875rem;
     color: var(--text-light-secondary);
     font-weight: 400;
+}
+
+/* Form Wrapper Transitions */
+.form-wrapper {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.form-wrapper[style*="display: none"] {
+    display: none !important;
 }
 
 /* Form Groups */
@@ -725,6 +797,261 @@ body {
     position: relative;
     z-index: 1;
     font-size: 1.125rem;
+}
+
+/* OTP Form Transitions */
+/* Ensure forms are properly hidden */
+.login-form.hidden-form {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+}
+
+.login-form {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.otp-form {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* OTP Info Section */
+.otp-info {
+    background: rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    animation: fadeInDown 0.4s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.otp-info i {
+    font-size: 2rem;
+    color: var(--orange-primary);
+    margin-bottom: 0.5rem;
+    display: block;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.otp-info p {
+    font-size: 0.875rem;
+    color: var(--text-light-secondary);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.otp-info strong {
+    color: var(--orange-primary);
+    font-weight: 600;
+}
+
+/* OTP Container */
+.otp-container {
+    margin-bottom: 1.5rem;
+    animation: fadeInUp 0.4s ease-out 0.1s backwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* OTP Boxes Container */
+.otp-boxes {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Individual OTP Box */
+.otp-box {
+    width: 3.5rem;
+    height: 3.5rem;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.5);
+    border: 2px solid rgba(249, 115, 22, 0.25);
+    border-radius: 12px;
+    color: var(--text-light-primary);
+    transition: var(--transition);
+    outline: none;
+    backdrop-filter: blur(10px);
+}
+
+.otp-box:focus {
+    border-color: var(--orange-primary);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 4px var(--orange-glow);
+    transform: scale(1.05);
+}
+
+.otp-box:not(:placeholder-shown) {
+    border-color: var(--orange-primary);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.otp-box.otp-error {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.otp-boxes.shake {
+    animation: shake 0.5s ease;
+}
+
+/* OTP Hint */
+.otp-hint {
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--text-light-muted);
+    margin-top: 0.5rem;
+}
+
+/* Resend Section */
+.resend-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.resend-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--orange-primary);
+    background: none;
+    border: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: var(--transition);
+    font-family: inherit;
+    text-decoration: none;
+}
+
+.resend-link:hover:not(:disabled) {
+    background: rgba(249, 115, 22, 0.1);
+    color: var(--orange-dark);
+    transform: translateY(-2px);
+}
+
+.resend-link:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.resend-link i {
+    font-size: 0.875rem;
+}
+
+/* Resend Timer */
+.resend-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-light-secondary);
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease;
+}
+
+.resend-timer i {
+    color: var(--orange-primary);
+}
+
+.resend-timer strong {
+    color: var(--orange-primary);
+    font-weight: 600;
+    min-width: 2ch;
+    display: inline-block;
+    text-align: center;
+}
+
+/* Back to Email Button */
+.back-to-email-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: var(--text-light-secondary);
+    border: 2px solid rgba(249, 115, 22, 0.3);
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    animation: fadeIn 0.4s ease-out 0.2s backwards;
+}
+
+.back-to-email-btn:hover {
+    background: rgba(249, 115, 22, 0.1);
+    border-color: var(--orange-primary);
+    color: var(--orange-primary);
+    transform: translateY(-2px);
+}
+
+/* Responsive OTP Boxes */
+@media (max-width: 480px) {
+    .otp-box {
+        width: 2.75rem;
+        height: 2.75rem;
+        font-size: 1.25rem;
+    }
+    
+    .otp-boxes {
+        gap: 0.5rem;
+    }
+    
+    .resend-section {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
 }
 
 /* Form Footer */

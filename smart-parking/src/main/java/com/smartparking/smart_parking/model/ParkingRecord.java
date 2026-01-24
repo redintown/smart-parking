@@ -14,6 +14,7 @@ public class ParkingRecord {
     private String vehicleType;
     private String licensePlate;
     private int slotNumber;
+    private Integer floorNumber;
 
     private LocalDateTime entryTime;
     private LocalDateTime exitTime;
@@ -50,6 +51,14 @@ public class ParkingRecord {
 
     public void setSlotNumber(int slotNumber) {
         this.slotNumber = slotNumber;
+    }
+
+    public Integer getFloorNumber() {
+        return floorNumber;
+    }
+
+    public void setFloorNumber(Integer floorNumber) {
+        this.floorNumber = floorNumber;
     }
 
     public LocalDateTime getEntryTime() {

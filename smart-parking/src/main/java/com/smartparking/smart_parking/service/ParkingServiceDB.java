@@ -1,9 +1,11 @@
 package com.smartparking.smart_parking.service;
 
+import com.smartparking.smart_parking.model.Floor;
 import com.smartparking.smart_parking.model.ParkingRecord;
 import com.smartparking.smart_parking.model.ParkingSlot;
 import com.smartparking.smart_parking.model.SlotDTO;
 import com.smartparking.smart_parking.model.VehicleEntity;
+import com.smartparking.smart_parking.repository.FloorRepository;
 import com.smartparking.smart_parking.repository.ParkingRecordRepository;
 import com.smartparking.smart_parking.repository.ParkingSlotRepository;
 import com.smartparking.smart_parking.repository.ParkingChargeRepository;
@@ -35,24 +37,34 @@ public class ParkingServiceDB {
     
     @Autowired
     private ParkingChargeRepository chargeRepo;
+    
+    @Autowired
+    private FloorRepository floorRepo;
 
     // ===================== STEP 5 =====================
     // ============ PARK VEHICLE (DB BASED) =============
     @Transactional
     public ParkingRecord parkVehicle(String licensePlate, String vehicleType) {
 
-        // 1. Find first free slot (check for active parking records as source of truth)
+        // 1. Find first free slot matching vehicle type (check for active parking records as source of truth)
         ParkingSlot slot = slotRepo.findAll()
                 .stream()
                 .filter(s -> {
+                    // Filter by vehicle type
+                    if (!s.getVehicleType().equalsIgnoreCase(vehicleType)) {
+                        return false;
+                    }
                     // Check if slot has an active parking record (exit_time IS NULL)
                     // THIS IS THE SOURCE OF TRUTH - not the slot.occupied field
-                    Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndExitTimeIsNull(s.getSlotNumber());
+                    Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(
+                        s.getSlotNumber(), 
+                        s.getFloor() != null ? s.getFloor().getFloorNumber() : null
+                    );
                     // Slot is free only if there's no active record
                     return activeRecord.isEmpty();
                 })
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("No slot available"));
+                .orElseThrow(() -> new RuntimeException("No slot available for vehicle type: " + vehicleType));
 
         // 2. Save vehicle in DB
         VehicleEntity vehicle = new VehicleEntity();
@@ -72,56 +84,79 @@ public class ParkingServiceDB {
         record.setLicensePlate(licensePlate);
         record.setVehicleType(vehicleType);
         record.setSlotNumber(slot.getSlotNumber());
+        record.setFloorNumber(slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null);
         record.setEntryTime(vehicle.getEntryTime());
         // exitTime is null by default (active record)
 
         ParkingRecord savedRecord = recordRepo.save(record);
-        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in slot " + slot.getSlotNumber());
+        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in slot " + slot.getSlotNumber() + 
+                          " on floor " + (slot.getFloor() != null ? slot.getFloor().getFloorNumber() : "N/A"));
         
         return savedRecord;
     }
     
     // ============ PARK VEHICLE IN SPECIFIC SLOT (AI SUGGESTION) =============
     @Transactional
-    public ParkingRecord parkVehicleInSlot(String licensePlate, String vehicleType, int preferredSlot) {
+    public ParkingRecord parkVehicleInSlot(String licensePlate, String vehicleType, int preferredSlot, Integer floorNumber) {
         
         // 1. Check if preferred slot exists
-        Optional<ParkingSlot> slotOpt = slotRepo.findById(preferredSlot);
+        Optional<ParkingSlot> slotOpt;
+        if (floorNumber != null) {
+            slotOpt = slotRepo.findBySlotNumberAndFloorFloorNumber(preferredSlot, floorNumber);
+        } else {
+            // Fallback: find by slot number only (for backward compatibility)
+            slotOpt = slotRepo.findAll()
+                    .stream()
+                    .filter(s -> s.getSlotNumber() == preferredSlot)
+                    .findFirst();
+        }
+        
         if (slotOpt.isEmpty()) {
-            throw new RuntimeException("Slot " + preferredSlot + " does not exist");
+            throw new RuntimeException("Slot " + preferredSlot + 
+                (floorNumber != null ? " on floor " + floorNumber : "") + " does not exist");
         }
         
         ParkingSlot slot = slotOpt.get();
         
         // 2. Check if preferred slot is available (check for active parking records as source of truth)
-        Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndExitTimeIsNull(preferredSlot);
+        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
+        Optional<ParkingRecord> activeRecord = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(
+            preferredSlot, slotFloorNumber);
         if (activeRecord.isPresent()) {
             // Slot is occupied, fall back to finding any available slot
             return parkVehicle(licensePlate, vehicleType);
         }
         
-        // 3. Save vehicle in DB
+        // 3. Verify vehicle type matches
+        if (!slot.getVehicleType().equalsIgnoreCase(vehicleType)) {
+            throw new RuntimeException("Slot " + preferredSlot + " is for " + slot.getVehicleType() + 
+                ", not " + vehicleType);
+        }
+        
+        // 4. Save vehicle in DB
         VehicleEntity vehicle = new VehicleEntity();
         vehicle.setLicensePlate(licensePlate);
         vehicle.setVehicleType(vehicleType);
         vehicle.setEntryTime(LocalDateTime.now());
         vehicleRepo.save(vehicle);
 
-        // 4. Mark slot as occupied (ensure consistency)
+        // 5. Mark slot as occupied (ensure consistency)
         slot.setOccupied(true);
         slot.setVehicle(vehicle);
         slotRepo.save(slot);
 
-        // 5. Create parking record (ENTRY SLIP) - THIS IS THE SOURCE OF TRUTH
+        // 6. Create parking record (ENTRY SLIP) - THIS IS THE SOURCE OF TRUTH
         ParkingRecord record = new ParkingRecord();
         record.setLicensePlate(licensePlate);
         record.setVehicleType(vehicleType);
         record.setSlotNumber(slot.getSlotNumber());
+        record.setFloorNumber(slotFloorNumber);
         record.setEntryTime(vehicle.getEntryTime());
         // exitTime is null by default (active record)
 
         ParkingRecord savedRecord = recordRepo.save(record);
-        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in preferred slot " + slot.getSlotNumber());
+        System.out.println("DEBUG: Parked vehicle " + licensePlate + " in preferred slot " + slot.getSlotNumber() + 
+                          " on floor " + (slotFloorNumber != null ? slotFloorNumber : "N/A"));
         
         return savedRecord;
     }
@@ -129,14 +164,26 @@ public class ParkingServiceDB {
     // ===================== STEP 6 =====================
     // ===== EXIT VEHICLE BY SLOT NUMBER (DB BASED) =====
     @Transactional
-    public ParkingRecord exitVehicleBySlot(int slotNumber) {
+    public ParkingRecord exitVehicleBySlot(int slotNumber, Integer floorNumber) {
 
-        // 1. Find slot by slot number
-        ParkingSlot slot = slotRepo.findById(slotNumber)
-                .orElseThrow(() -> new RuntimeException("Invalid slot number"));
+        // 1. Find slot by slot number and floor
+        Optional<ParkingSlot> slotOpt;
+        if (floorNumber != null) {
+            slotOpt = slotRepo.findBySlotNumberAndFloorFloorNumber(slotNumber, floorNumber);
+        } else {
+            // Fallback: find by slot number only
+            slotOpt = slotRepo.findAll()
+                    .stream()
+                    .filter(s -> s.getSlotNumber() == slotNumber)
+                    .findFirst();
+        }
+        
+        ParkingSlot slot = slotOpt.orElseThrow(() -> new RuntimeException("Invalid slot number" + 
+            (floorNumber != null ? " on floor " + floorNumber : "")));
 
         // 2. Find active parking record FIRST (this is the source of truth)
-        ParkingRecord record = recordRepo.findBySlotNumberAndExitTimeIsNull(slotNumber)
+        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
+        ParkingRecord record = recordRepo.findBySlotNumberAndFloorNumberAndExitTimeIsNull(slotNumber, slotFloorNumber)
                 .orElseThrow(() -> new RuntimeException("No vehicle found in this slot"));
 
         // 3. Get vehicle from the record (more reliable than from slot)
@@ -171,7 +218,8 @@ public class ParkingServiceDB {
         slot.setVehicle(null);
         slotRepo.save(slot);
         
-        System.out.println("DEBUG: Exited vehicle from slot " + slotNumber);
+        System.out.println("DEBUG: Exited vehicle from slot " + slotNumber + 
+                          " on floor " + (slotFloorNumber != null ? slotFloorNumber : "N/A"));
 
         return record;
     }
@@ -200,9 +248,12 @@ public class ParkingServiceDB {
         int billableHours = calculateBillableHours(durationMinutes);
 
         // 5. Find parking record
+        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
         ParkingRecord record = recordRepo.findAll()
                 .stream()
-                .filter(r -> r.getSlotNumber() == slot.getSlotNumber() && r.getExitTime() == null)
+                .filter(r -> r.getSlotNumber() == slot.getSlotNumber() && 
+                           (slotFloorNumber == null ? r.getFloorNumber() == null : slotFloorNumber.equals(r.getFloorNumber())) &&
+                           r.getExitTime() == null)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Parking record not found"));
 
@@ -231,23 +282,23 @@ public class ParkingServiceDB {
     // The ParkingSlot table's 'occupied' field is just for caching/consistency
     @Transactional
     public List<SlotDTO> getAllSlots() {
+        return getAllSlotsByFloor(null);
+    }
+    
+    @Transactional
+    public List<SlotDTO> getAllSlotsByFloor(Integer floorNumber) {
         try {
-            // First, ensure all 20 slots exist in database (defensive check)
-            List<ParkingSlot> allSlots = slotRepo.findAll();
+            List<ParkingSlot> allSlots;
             
-            // If slots don't exist, initialize them
-            if (allSlots.size() < 20) {
-                for (int i = 1; i <= 20; i++) {
-                    Optional<ParkingSlot> existingSlot = slotRepo.findById(i);
-                    if (existingSlot.isEmpty()) {
-                        ParkingSlot newSlot = new ParkingSlot();
-                        newSlot.setSlotNumber(i);
-                        newSlot.setOccupied(false);
-                        newSlot.setVehicle(null);
-                        slotRepo.save(newSlot);
-                    }
+            if (floorNumber != null) {
+                // Get slots for specific floor
+                Optional<Floor> floorOpt = floorRepo.findByFloorNumber(floorNumber);
+                if (floorOpt.isEmpty()) {
+                    return new ArrayList<>(); // Return empty list if floor doesn't exist
                 }
-                // Re-fetch after initialization
+                allSlots = slotRepo.findByFloorOrderBySlotNumberAsc(floorOpt.get());
+            } else {
+                // Get all slots from all floors
                 allSlots = slotRepo.findAll();
             }
             
@@ -257,29 +308,40 @@ public class ParkingServiceDB {
             
             System.out.println("DEBUG: Found " + activeRecords.size() + " active parking records");
             activeRecords.forEach(record -> {
-                System.out.println("  - Slot " + record.getSlotNumber() + ": " + 
+                System.out.println("  - Floor " + record.getFloorNumber() + ", Slot " + record.getSlotNumber() + ": " + 
                                  record.getLicensePlate() + " (" + record.getVehicleType() + ")");
             });
             
-            // Create a map of slot number -> active record for O(1) lookup
-            Map<Integer, ParkingRecord> activeRecordMap = activeRecords.stream()
+            // Create a map of (floorNumber, slotNumber) -> active record for O(1) lookup
+            Map<String, ParkingRecord> activeRecordMap = activeRecords.stream()
                     .collect(Collectors.toMap(
-                            ParkingRecord::getSlotNumber,
+                            record -> (record.getFloorNumber() != null ? record.getFloorNumber() : -1) + "_" + record.getSlotNumber(),
                             record -> record,
                             (existing, replacement) -> {
                                 // If duplicate (shouldn't happen), log warning and keep first
-                                System.err.println("WARNING: Duplicate active record for slot " + 
-                                                 existing.getSlotNumber());
+                                System.err.println("WARNING: Duplicate active record for floor " + 
+                                                 existing.getFloorNumber() + ", slot " + existing.getSlotNumber());
                                 return existing;
                             }
                     ));
             
             // Process each slot - ParkingRecord is the source of truth
             List<SlotDTO> result = allSlots.stream()
-                    .sorted((s1, s2) -> Integer.compare(s1.getSlotNumber(), s2.getSlotNumber()))
+                    .sorted((s1, s2) -> {
+                        // Sort by floor first, then by slot number
+                        int floorCompare = Integer.compare(
+                            s1.getFloor() != null ? s1.getFloor().getFloorNumber() : -1,
+                            s2.getFloor() != null ? s2.getFloor().getFloorNumber() : -1
+                        );
+                        if (floorCompare != 0) return floorCompare;
+                        return Integer.compare(s1.getSlotNumber(), s2.getSlotNumber());
+                    })
                     .map(slot -> {
+                        Integer slotFloorNumber = slot.getFloor() != null ? slot.getFloor().getFloorNumber() : null;
+                        String recordKey = (slotFloorNumber != null ? slotFloorNumber : -1) + "_" + slot.getSlotNumber();
+                        
                         // Check for active parking record (exit_time IS NULL) - SOURCE OF TRUTH
-                        ParkingRecord activeRecord = activeRecordMap.get(slot.getSlotNumber());
+                        ParkingRecord activeRecord = activeRecordMap.get(recordKey);
                         
                         if (activeRecord != null) {
                             // Slot IS OCCUPIED - get data from active parking record
@@ -304,7 +366,8 @@ public class ParkingServiceDB {
                             }
                             
                             return new SlotDTO(
-                                slot.getSlotNumber(), 
+                                slot.getSlotNumber(),
+                                slotFloorNumber,
                                 true, // OCCUPIED - from ParkingRecord
                                 activeRecord.getLicensePlate(), 
                                 activeRecord.getVehicleType(),
@@ -321,7 +384,8 @@ public class ParkingServiceDB {
                                 slotRepo.save(slot);
                             }
                             return new SlotDTO(
-                                slot.getSlotNumber(), 
+                                slot.getSlotNumber(),
+                                slotFloorNumber,
                                 false, // NOT OCCUPIED - no active record
                                 null, 
                                 null,
@@ -339,20 +403,19 @@ public class ParkingServiceDB {
             return result;
         } catch (Exception e) {
             // Log error and return empty list or fallback
-            System.err.println("CRITICAL ERROR in getAllSlots(): " + e.getMessage());
+            System.err.println("CRITICAL ERROR in getAllSlotsByFloor(): " + e.getMessage());
             e.printStackTrace();
-            // Return empty slots as fallback (better than crashing)
-            List<SlotDTO> fallback = new ArrayList<>();
-            for (int i = 1; i <= 20; i++) {
-                fallback.add(new SlotDTO(i, false, null, null));
-            }
-            return fallback;
+            return new ArrayList<>();
         }
     }
 
     // ===================== DEBUG METHODS =====================
     public ResponseEntity<?> debugSlot(int slotNumber) {
-        ParkingSlot slot = slotRepo.findById(slotNumber)
+        // Find slot by slotNumber (not by ID, since slotNumber is not the primary key)
+        // There may be multiple slots with the same slotNumber on different floors
+        ParkingSlot slot = slotRepo.findAll().stream()
+                .filter(s -> s.getSlotNumber() == slotNumber)
+                .findFirst()
                 .orElse(null);
         
         if (slot == null) {
@@ -361,6 +424,11 @@ public class ParkingServiceDB {
         
         StringBuilder info = new StringBuilder();
         info.append("Slot ").append(slotNumber).append(":\n");
+        info.append("  ID: ").append(slot.getId()).append("\n");
+        if (slot.getFloor() != null) {
+            info.append("  Floor: ").append(slot.getFloor().getFloorNumber()).append("\n");
+        }
+        info.append("  Vehicle Type: ").append(slot.getVehicleType()).append("\n");
         info.append("  Occupied: ").append(slot.isOccupied()).append("\n");
         if (slot.isOccupied() && slot.getVehicle() != null) {
             info.append("  Vehicle: ").append(slot.getVehicle().getLicensePlate()).append("\n");

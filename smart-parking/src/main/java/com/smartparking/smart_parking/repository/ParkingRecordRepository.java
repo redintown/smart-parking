@@ -20,6 +20,14 @@ public interface ParkingRecordRepository
     Optional<ParkingRecord> findBySlotNumberAndExitTimeIsNull(int slotNumber);
     
     /**
+     * Finds an active parking record (exit_time IS NULL) for a given slot number and floor
+     * @param slotNumber The slot number to search for
+     * @param floorNumber The floor number to search for
+     * @return Optional containing the active parking record if found
+     */
+    Optional<ParkingRecord> findBySlotNumberAndFloorNumberAndExitTimeIsNull(int slotNumber, Integer floorNumber);
+    
+    /**
      * Finds all completed parking records (exit_time IS NOT NULL)
      */
     List<ParkingRecord> findByExitTimeIsNotNullOrderByExitTimeDesc();

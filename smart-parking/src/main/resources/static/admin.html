@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Smart Parking Lot</title>
-    
+    <!-- Supabase removed: auth uses backend token + /admin/verify. Avoids pa.bundle.js / onUpdated errors. -->
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -76,7 +76,7 @@
                         </button>
                     </form>
                     <div class="auth-footer">
-                        <p><i class="fas fa-info-circle"></i> Default credentials: <strong>admin/admin123</strong> or <strong>operator/operator123</strong></p>
+                        <p><i class="fas fa-info-circle"></i> Contact your administrator for access.</p>
                     </div>
                 </div>
 
@@ -109,17 +109,7 @@
                                 <i class="fas fa-envelope"></i>
                                 Email
                             </label>
-                            <input type="email" id="signupEmail" class="form-control" autocomplete="email" placeholder="your.email@example.com">
-                        </div>
-                        <div class="form-group">
-                            <label for="signupRole">
-                                <i class="fas fa-user-tag"></i>
-                                Role
-                            </label>
-                            <select id="signupRole" class="form-control">
-                                <option value="OPERATOR">Operator</option>
-                                <option value="ADMIN">Administrator</option>
-                            </select>
+                            <input type="email" id="signupEmail" class="form-control" autocomplete="email" placeholder="your.email@example.com" required>
                         </div>
                         <button type="submit" class="btn btn-primary btn-block btn-lg">
                             <i class="fas fa-user-plus"></i>
@@ -186,6 +176,10 @@
             <button class="nav-tab" onclick="showTab('override')">
                 <i class="fas fa-tools"></i>
                 <span>Manual Override</span>
+            </button>
+            <button class="nav-tab" onclick="showTab('floor-management')">
+                <i class="fas fa-building"></i>
+                <span>Floor & Slot Management</span>
             </button>
         </nav>
 
@@ -341,6 +335,12 @@
                             <h2>Parking Slot Visualization</h2>
                         </div>
                         <div class="card-header-right">
+                            <div class="floor-selector">
+                                <label for="floorFilter">Filter by Floor:</label>
+                                <select id="floorFilter" class="form-control" onchange="loadSlots()">
+                                    <option value="">All Floors</option>
+                                </select>
+                            </div>
                             <div class="legend">
                                 <div class="legend-item">
                                     <div class="legend-color available"></div>
@@ -503,6 +503,99 @@
                 </div>
             </div>
 
+            <!-- Floor & Slot Management Tab -->
+            <div id="floor-managementTab" class="tab-content">
+                <div class="dashboard-grid">
+                    <!-- Add Floor Form -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-plus-circle"></i>
+                                <h2>Add New Floor</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="addFloorForm" onsubmit="handleAddFloor(event)">
+                                <div class="form-group">
+                                    <label for="floorNumber">Floor Number *</label>
+                                    <input type="number" id="floorNumber" class="form-control" min="1" required placeholder="e.g., 1, 2, 3">
+                                </div>
+                                <div class="form-group">
+                                    <label for="floorDescription">Description (Optional)</label>
+                                    <textarea id="floorDescription" class="form-control" rows="3" placeholder="e.g., Ground Floor, First Floor, etc."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Create Floor
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Add Slots Form -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <div class="card-header-left">
+                                <i class="fas fa-parking"></i>
+                                <h2>Add Parking Slots</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="addSlotsForm" onsubmit="handleAddSlots(event)">
+                                <div class="form-group">
+                                    <label for="slotFloorNumber">Select Floor *</label>
+                                    <select id="slotFloorNumber" class="form-control" required>
+                                        <option value="">-- Select Floor --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="slotVehicleType">Vehicle Type *</label>
+                                    <select id="slotVehicleType" class="form-control" required>
+                                        <option value="">-- Select Vehicle Type --</option>
+                                        <option value="BIKE">Bike</option>
+                                        <option value="CAR">Car</option>
+                                        <option value="MICROBUS">Microbus</option>
+                                        <option value="TRUCK">Truck</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="startSlotNumber">Start Slot Number *</label>
+                                    <input type="number" id="startSlotNumber" class="form-control" min="1" required placeholder="e.g., 1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="numberOfSlots">Number of Slots *</label>
+                                    <input type="number" id="numberOfSlots" class="form-control" min="1" required placeholder="e.g., 5">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Add Slots
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floors List -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <i class="fas fa-list"></i>
+                            <h2>All Floors</h2>
+                        </div>
+                        <div class="card-header-right">
+                            <button class="btn-icon" onclick="loadFloors()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="floorsList" class="floors-list">
+                            <!-- Floors will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Manual Override Tab -->
             <div id="overrideTab" class="tab-content">
                 <div class="dashboard-grid">
@@ -574,12 +667,12 @@
 
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>&copy; 2024 Smart Parking Lot System - Admin Dashboard</p>
+            <p>&copy; 2026 Smart Parking Lot System - Admin Dashboard</p>
         </footer>
     </div>
 
     <!-- Slot Detail Modal -->
-    <div id="slotModal" class="modal">
+    <div id="slotModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Slot Details</h2>
@@ -596,7 +689,77 @@
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- JavaScript -->
+    <!-- Supabase for signup OTP (signInWithOtp); auth-guard, admin-auth, then admin.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth-guard.js"></script>
+    <script src="admin-auth.js"></script>
+    <script>
+        // Protect admin dashboard - require authentication (with loop prevention)
+        (async function() {
+            // Wait for auth guard to load
+            await new Promise(resolve => {
+                if (window.authGuard) {
+                    resolve();
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (window.authGuard) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 50);
+                    // Timeout after 2 seconds
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }, 2000);
+                }
+            });
+            
+            // Check if user just logged in (skip auth check for fresh logins)
+            const justLoggedIn = sessionStorage.getItem('justLoggedIn');
+            if (justLoggedIn === 'true') {
+                console.log('✅ User just logged in, allowing immediate access');
+                sessionStorage.removeItem('justLoggedIn');
+                // Clear redirect flags
+                sessionStorage.removeItem('authRedirectInProgress');
+                sessionStorage.removeItem('authCheckInProgress');
+                console.log('✅ Admin dashboard access granted (fresh login)');
+                return;
+            }
+            
+            // Check if we're already in a redirect (prevent loops)
+            const redirectKey = 'authRedirectInProgress';
+            if (sessionStorage.getItem(redirectKey)) {
+                console.log('⚠️ Redirect already in progress, allowing access to prevent loop');
+                sessionStorage.removeItem(redirectKey);
+                console.log('✅ Admin dashboard access granted (loop prevention)');
+                return;
+            }
+            
+            // Check authentication
+            console.log('🔐 Checking authentication status...');
+            const isAuth = await window.authGuard.checkAuthentication();
+            
+            if (!isAuth) {
+                console.log('❌ Not authenticated, redirecting to login');
+                // Clear any redirect flags to prevent loops
+                sessionStorage.removeItem(redirectKey);
+                // Small delay to prevent immediate redirect loops
+                setTimeout(() => {
+                    // Double-check we're not already redirecting
+                    if (!sessionStorage.getItem(redirectKey)) {
+                        sessionStorage.setItem(redirectKey, 'true');
+                        window.location.replace('admin-login.html');
+                    }
+                }, 200);
+                return;
+            }
+            
+            // Clear any redirect flags
+            sessionStorage.removeItem(redirectKey);
+            console.log('✅ Admin dashboard access granted (authenticated)');
+        })();
+    </script>
     <script src="admin.js"></script>
 </body>
 </html>

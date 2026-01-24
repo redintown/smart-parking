@@ -52,6 +52,89 @@ function getVehicleTypeName(vehicleType) {
 }
 
 // ============================================
+// FLOOR FILTER (additive UI only - no API/slot structure changes)
+// ============================================
+
+/** Current floor filter: null = All Floors, number = specific floor. */
+let selectedFloor = null;
+
+/**
+ * Derives floor number for a slot. Uses slot.floorNumber when present (from API);
+ * otherwise falls back to slot-number ranges (e.g. 1-10→1, 11-20→2, 21-30→3).
+ * @param {Object} slot - Slot data object
+ * @returns {number} - Floor number
+ */
+function getFloorFromSlot(slot) {
+    if (slot.floorNumber != null && slot.floorNumber !== undefined) {
+        return slot.floorNumber;
+    }
+    return Math.ceil((slot.slotNumber || 1) / 10);
+}
+
+/**
+ * Returns unique, sorted floor numbers from slots (using getFloorFromSlot for each).
+ * @param {Array} slots - Array of slot objects
+ * @returns {number[]} - Sorted floor numbers
+ */
+function getUniqueFloorsFromSlots(slots) {
+    if (!slots || slots.length === 0) return [];
+    const set = new Set();
+    slots.forEach(s => set.add(getFloorFromSlot(s)));
+    return Array.from(set).sort((a, b) => a - b);
+}
+
+/**
+ * Renders the floor selector: [ All Floors | Floor 1 | Floor 2 | ... ].
+ * @param {number[]} floors - Sorted floor numbers
+ */
+function renderFloorSelector(floors) {
+    const container = document.getElementById('floorSelector');
+    if (!container) return;
+    const parts = [
+        '<button type="button" class="floor-selector-btn' + (selectedFloor === null ? ' active' : '') + '" data-floor="all">All Floors</button>'
+    ];
+    floors.forEach(f => {
+        parts.push('<button type="button" class="floor-selector-btn' + (selectedFloor === f ? ' active' : '') + '" data-floor="' + f + '">Floor ' + f + '</button>');
+    });
+    container.innerHTML = parts.join('');
+}
+
+/**
+ * Shows/hides slot cards by adding/removing .floor-hidden based on selectedFloor.
+ * No DOM duplication; filtering is reversible.
+ */
+function applyFloorFilter() {
+    const grid = document.getElementById('slotsGrid');
+    if (!grid) return;
+    const cards = grid.querySelectorAll('.slot-card');
+    cards.forEach(card => {
+        const floor = card.dataset.floor;
+        if (selectedFloor === null) {
+            card.classList.remove('floor-hidden');
+        } else if (floor === String(selectedFloor)) {
+            card.classList.remove('floor-hidden');
+        } else {
+            card.classList.add('floor-hidden');
+        }
+    });
+}
+
+/**
+ * Updates the small heading above slots: "Floor X Slots" when a floor is selected, hidden for "All Floors".
+ */
+function updateFloorHeading() {
+    const el = document.getElementById('slotsFloorHeading');
+    if (!el) return;
+    if (selectedFloor === null) {
+        el.style.display = 'none';
+        el.textContent = '';
+    } else {
+        el.style.display = 'block';
+        el.textContent = 'Floor ' + selectedFloor + ' Slots';
+    }
+}
+
+// ============================================
 // SLOT RENDERING
 // ============================================
 
@@ -186,8 +269,10 @@ function renderSlotCard(slot) {
         }
     }
     
+    // Floor: use API floorNumber when present, else derive from slot ranges (1-10→1, 11-20→2, etc.)
+    const floor = getFloorFromSlot(slot);
     return `
-        <div class="slot-card ${statusClass}" data-slot-number="${slot.slotNumber}" id="slot-${slot.slotNumber}" ${tooltipAttr}>
+        <div class="slot-card ${statusClass}" data-slot-number="${slot.slotNumber}" data-floor="${floor}" id="slot-${slot.slotNumber}" ${tooltipAttr}>
             <div class="slot-number">
                 <i class="fas fa-parking"></i>
                 <span>Slot ${slot.slotNumber}</span>
@@ -215,14 +300,26 @@ function renderSlots(slots) {
     
     if (!slots || slots.length === 0) {
         slotsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); grid-column: 1 / -1;">No slots available</p>';
+        selectedFloor = null;
+        renderFloorSelector([]);
+        updateFloorHeading();
         return;
     }
     
     // Sort slots by slot number
     const sortedSlots = [...slots].sort((a, b) => a.slotNumber - b.slotNumber);
     
-    // Render all slots
+    // Render all slots (no duplication; floor filter will show/hide via .floor-hidden)
     slotsGrid.innerHTML = sortedSlots.map(slot => renderSlotCard(slot)).join('');
+    
+    // --- Floor filter: build selector, heading, apply visibility ---
+    const floors = getUniqueFloorsFromSlots(slots);
+    if (selectedFloor !== null && !floors.includes(selectedFloor)) {
+        selectedFloor = null;
+    }
+    renderFloorSelector(floors);
+    updateFloorHeading();
+    applyFloorFilter();
 }
 
 // ============================================
@@ -350,6 +447,22 @@ async function loadSlots() {
  * Initialize slots visualization when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', function() {
+    // Floor selector: delegate click to avoid re-attaching on each render
+    const floorSelectorEl = document.getElementById('floorSelector');
+    if (floorSelectorEl) {
+        floorSelectorEl.addEventListener('click', function(e) {
+            const btn = e.target.closest('.floor-selector-btn');
+            if (!btn) return;
+            const floor = btn.dataset.floor;
+            selectedFloor = floor === 'all' ? null : parseInt(floor, 10);
+            floorSelectorEl.querySelectorAll('.floor-selector-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.floor === 'all' ? selectedFloor === null : selectedFloor === parseInt(b.dataset.floor, 10));
+            });
+            applyFloorFilter();
+            updateFloorHeading();
+        });
+    }
+
     // Load slots on page load
     loadSlots();
     

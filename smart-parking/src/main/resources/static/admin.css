@@ -98,7 +98,7 @@ body {
    ============================================ */
 
 .modal {
-    display: flex;
+    display: none; /* Hidden by default */
     align-items: flex-start;
     justify-content: center;
     position: fixed;
@@ -114,6 +114,13 @@ body {
     background-attachment: fixed;
     padding: 1.5rem;
     position: relative;
+}
+
+/* Show modal when explicitly displayed */
+.modal[style*="display: flex"],
+.modal[style*="display:block"],
+.modal.show {
+    display: flex !important;
 }
 
 body.dark-mode .modal {
@@ -1005,6 +1012,11 @@ body.dark-mode .auth-footer strong {
 /* ============================================
    MODAL
    ============================================ */
+
+/* Ensure modal content is only visible when modal is shown */
+.modal:not(.show):not([style*="display: flex"]):not([style*="display:block"]) .modal-content {
+    display: none !important;
+}
 
 .modal-content {
     background: var(--bg-card);
@@ -1923,4 +1935,117 @@ body.dark-mode .auth-footer strong {
     .no-print {
         display: none !important;
     }
+}
+
+/* ============================================
+   FLOOR MANAGEMENT STYLES
+   ============================================ */
+
+.floor-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 15px;
+}
+
+.floor-selector label {
+    font-size: 14px;
+    color: var(--text-secondary-dark);
+    white-space: nowrap;
+}
+
+.floor-selector .form-control {
+    min-width: 150px;
+}
+
+.floor-section {
+    margin-bottom: 30px;
+}
+
+.floor-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary-dark);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.floor-title i {
+    color: var(--primary-orange);
+}
+
+.slots-grid-floor {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.floors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.floor-card {
+    background: var(--bg-card-dark);
+    border: 1px solid var(--border-color-dark);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.floor-card:hover {
+    border-color: var(--primary-orange);
+    box-shadow: var(--shadow-md);
+}
+
+.floor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.floor-info h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary-dark);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.floor-info h3 i {
+    color: var(--primary-orange);
+}
+
+.floor-description {
+    color: var(--text-secondary-dark);
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.floor-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Light mode adjustments */
+.light-mode .floor-title {
+    color: var(--text-primary-light);
+    border-bottom-color: var(--border-color-light);
+}
+
+.light-mode .floor-card {
+    background: var(--bg-card-light);
+    border-color: var(--border-color-light);
+}
+
+.light-mode .floor-description {
+    color: var(--text-secondary-light);
 }

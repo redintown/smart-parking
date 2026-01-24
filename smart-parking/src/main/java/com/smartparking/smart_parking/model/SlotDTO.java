@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 public class SlotDTO {
     private int slotNumber;
+    private Integer floorNumber;
     private boolean occupied;
     private String licensePlate;
     private String vehicleType;
@@ -17,6 +18,7 @@ public class SlotDTO {
 
     public SlotDTO(int slotNumber, boolean occupied, String licensePlate, String vehicleType) {
         this.slotNumber = slotNumber;
+        this.floorNumber = null;
         this.occupied = occupied;
         this.licensePlate = licensePlate;
         this.vehicleType = vehicleType;
@@ -25,9 +27,22 @@ public class SlotDTO {
         this.allowedMinutes = null;
     }
     
+    public SlotDTO(int slotNumber, Integer floorNumber, boolean occupied, String licensePlate, String vehicleType, 
+                   LocalDateTime entryTime, Long durationMinutes, Integer allowedMinutes) {
+        this.slotNumber = slotNumber;
+        this.floorNumber = floorNumber;
+        this.occupied = occupied;
+        this.licensePlate = licensePlate;
+        this.vehicleType = vehicleType;
+        this.entryTime = entryTime;
+        this.durationMinutes = durationMinutes;
+        this.allowedMinutes = allowedMinutes;
+    }
+    
     public SlotDTO(int slotNumber, boolean occupied, String licensePlate, String vehicleType, 
                    LocalDateTime entryTime, Long durationMinutes, Integer allowedMinutes) {
         this.slotNumber = slotNumber;
+        this.floorNumber = null;
         this.occupied = occupied;
         this.licensePlate = licensePlate;
         this.vehicleType = vehicleType;
@@ -78,5 +93,13 @@ public class SlotDTO {
     
     public void setAllowedMinutes(Integer allowedMinutes) {
         this.allowedMinutes = allowedMinutes;
+    }
+    
+    public Integer getFloorNumber() {
+        return floorNumber;
+    }
+    
+    public void setFloorNumber(Integer floorNumber) {
+        this.floorNumber = floorNumber;
     }
 }

@@ -3,15 +3,63 @@
  * Handles authentication, dashboard stats, slot visualization, history, charges, analytics, and manual override
  */
 
+// Supabase (for signup signInWithOtp only)
+var SUPABASE_URL = 'https://urioslfgnnbzflviacyt.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaW9zbGZnbm5iemZsdmlhY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNDg1ODMsImV4cCI6MjA4MzcyNDU4M30.Bwbq2ON54X940V3kFwJk3Iwyeem5msbNDlfHf6pQWP8';
+
+// ============================================
+// ROUTE PROTECTION - CHECK AUTHENTICATION
+// ============================================
+
+// Wait for DOM and scripts to load before checking auth
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure slot modal is hidden on page load
+    const slotModal = document.getElementById('slotModal');
+    if (slotModal) {
+        slotModal.style.display = 'none';
+        slotModal.classList.remove('show');
+    }
+    
+    checkAuthOnLoad();
+});
+
+function checkAuthOnLoad() {
+    console.log('🔍 Checking authentication on page load...');
+    // Use authGuard (supports backend authToken + Supabase)
+    const doCheck = () => {
+        if (!window.authGuard) {
+            setTimeout(doCheck, 50);
+            return;
+        }
+        window.authGuard.checkAuthentication().then(function (isAuth) {
+            if (isAuth) {
+                var loginModal = document.getElementById('loginModal');
+                var adminContainer = document.getElementById('adminContainer');
+                if (loginModal) loginModal.style.display = 'none';
+                if (adminContainer) adminContainer.style.display = 'block';
+                if (typeof initializeDashboard === 'function') initializeDashboard();
+            } else {
+                window.location.replace('admin-login.html');
+            }
+        }).catch(function () {
+            window.location.replace('admin-login.html');
+        });
+    };
+    setTimeout(doCheck, 50);
+}
+
 // ============================================
 // GLOBAL STATE
 // ============================================
 
-let authToken = localStorage.getItem('adminToken') || null;
+let authToken = null;
 let currentAdmin = null;
+// Sync from localStorage (backend login stores 'authToken')
+try { authToken = localStorage.getItem('authToken'); } catch (e) {}
 let slotsData = [];
 let historyData = [];
 let chargesData = [];
+let floorsData = [];
 let revenueChart = null;
 let peakHoursChart = null;
 let autoRefreshInterval = null;
@@ -129,20 +177,54 @@ function showToast(message, type = 'info') {
 // API FUNCTIONS
 // ============================================
 
+/**
+ * Gets the current authentication token (backend session)
+ */
+function getAuthToken() {
+    if (window.adminAuth && typeof window.adminAuth.getAuthToken === 'function') {
+        return window.adminAuth.getAuthToken();
+    }
+    return localStorage.getItem('authToken') || authToken;
+}
+
 async function apiCall(url, options = {}) {
+    // Note: Floor and Slot management endpoints don't require authentication
+    // Admin is already authenticated at login time
+    // Token is optional - only send if available
+    
+    const token = getAuthToken();
+    
     const defaultOptions = {
         headers: {
-            'Content-Type': 'application/json',
-            ...(authToken && { 'Authorization': authToken })
+            'Content-Type': 'application/json'
+            // Authorization header is optional - not required for floor/slot operations
+            // ...(token && { 'Authorization': token })
         }
     };
     
+    // Merge headers properly (options.headers should override defaults)
+    const mergedHeaders = {
+        ...defaultOptions.headers,
+        ...(options.headers || {})
+    };
+    
+    const finalOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: mergedHeaders
+    };
+    
     try {
-        const response = await fetch(url, { ...defaultOptions, ...options });
+        console.log('API Call:', url, finalOptions);
+        const response = await fetch(url, finalOptions);
+        console.log('API Response status:', response.status, response.statusText);
         const data = await response.json();
+        console.log('API Response data:', data);
         
         if (!response.ok) {
-            throw new Error(data.message || data.error || 'Request failed');
+            const errorMsg = data.message || data.error || `Request failed with status ${response.status}`;
+            console.error('API Error Response:', errorMsg, data);
+            throw new Error(errorMsg);
         }
         
         return data;
@@ -158,90 +240,85 @@ async function apiCall(url, options = {}) {
 
 async function handleLogin(event) {
     event.preventDefault();
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
+    var username = document.getElementById('username') && document.getElementById('username').value;
+    var password = document.getElementById('password') && document.getElementById('password').value;
+    if (!username || !password) {
+        showToast('Please enter username and password', 'error');
+        return;
+    }
     try {
-        const response = await fetch('/admin/login', {
+        var response = await fetch('/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+            body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
         });
-        
-        const data = await response.json();
-        
-        if (data.success) {
+        var data = await response.json().catch(function() { return {}; });
+        if (response.ok && data.success && data.token) {
             authToken = data.token;
-            currentAdmin = data.admin;
-            localStorage.setItem('adminToken', authToken);
-            localStorage.setItem('adminData', JSON.stringify(currentAdmin));
-            
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminContainer').style.display = 'block';
-            
+            currentAdmin = data.admin || { username: data.username, role: data.role };
+            localStorage.setItem('authToken', data.token);
+            if (data.admin) localStorage.setItem('adminData', JSON.stringify(data.admin));
+            var lm = document.getElementById('loginModal');
+            var ac = document.getElementById('adminContainer');
+            if (lm) lm.style.display = 'none';
+            if (ac) ac.style.display = 'block';
             showToast('Login successful!', 'success');
-            initializeDashboard();
+            if (typeof initializeDashboard === 'function') initializeDashboard();
+        } else if (response.status === 403 && data.email) {
+            showToast('Please verify your email first. Redirecting...', 'error');
+            setTimeout(function() { window.location.href = 'verify-email.html?email=' + encodeURIComponent(data.email); }, 800);
         } else {
-            showToast(data.message || 'Invalid credentials', 'error');
+            showToast(data.message || 'Login failed', 'error');
         }
-    } catch (error) {
-        showToast('Login failed: ' + error.message, 'error');
+    } catch (e) {
+        showToast('Login failed: ' + (e.message || 'Network error'), 'error');
     }
 }
 
 async function handleSignup(event) {
     event.preventDefault();
-    const username = document.getElementById('signupUsername').value.trim();
-    const password = document.getElementById('signupPassword').value;
-    const fullName = document.getElementById('signupFullName').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
-    const role = document.getElementById('signupRole').value;
-    
-    // Validation
+    var username = (document.getElementById('signupUsername') && document.getElementById('signupUsername').value) || '';
+    var password = (document.getElementById('signupPassword') && document.getElementById('signupPassword').value) || '';
+    var email = (document.getElementById('signupEmail') && document.getElementById('signupEmail').value) || '';
+    username = username.trim();
+    email = email.trim().toLowerCase();
     if (username.length < 3) {
         showToast('Username must be at least 3 characters', 'error');
         return;
     }
-    
+    if (!email) {
+        showToast('Email is required', 'error');
+        return;
+    }
     if (password.length < 6) {
         showToast('Password must be at least 6 characters', 'error');
         return;
     }
-    
     try {
-        const params = new URLSearchParams({
-            username: username,
-            password: password,
-            role: role
-        });
-        
-        if (fullName) params.append('fullName', fullName);
-        if (email) params.append('email', email);
-        
-        const response = await fetch('/admin/signup', {
+        var response = await fetch('/admin/signup', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString()
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, email: email, password: password })
         });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            authToken = data.token;
-            currentAdmin = data.admin;
-            localStorage.setItem('adminToken', authToken);
-            localStorage.setItem('adminData', JSON.stringify(currentAdmin));
-            
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('adminContainer').style.display = 'block';
-            
-            showToast('Account created successfully! Welcome!', 'success');
-            initializeDashboard();
+        var data = await response.json().catch(function() { return {}; });
+        if (response.ok && data.success) {
+            var sb = (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function')
+                ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+            if (sb && sb.auth) {
+                var otpRes = await sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: null, shouldCreateUser: true } });
+                if (otpRes.error) {
+                    showToast(otpRes.error.message || 'Could not send OTP. Use Resend on the next page.', 'error');
+                    window.location.href = 'verify-email.html?email=' + encodeURIComponent(email);
+                    return;
+                }
+            }
+            showToast('OTP sent to your email. Please verify.', 'success');
+            window.location.href = 'verify-email.html?email=' + encodeURIComponent(email);
         } else {
-            showToast(data.message || 'Registration failed', 'error');
+            showToast(data.message || 'Signup failed', 'error');
         }
-    } catch (error) {
-        showToast('Signup failed: ' + error.message, 'error');
+    } catch (e) {
+        showToast('Signup failed: ' + (e.message || 'Network error'), 'error');
     }
 }
 
@@ -264,52 +341,28 @@ function switchAuthTab(tab) {
     }
 }
 
-function handleLogout() {
-    if (authToken) {
-        fetch('/admin/logout', {
-            method: 'POST',
-            headers: { 'Authorization': authToken }
-        }).catch(() => {});
-    }
-    
-    authToken = null;
-    currentAdmin = null;
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminData');
-    
-    document.getElementById('adminContainer').style.display = 'none';
-    document.getElementById('loginModal').style.display = 'block';
-    
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-    }
-    
-    showToast('Logged out successfully', 'info');
-}
-
-function checkAuth() {
-    if (authToken) {
-        fetch('/admin/verify', {
-            headers: { 'Authorization': authToken }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.valid) {
-                currentAdmin = JSON.parse(localStorage.getItem('adminData') || '{}');
-                document.getElementById('loginModal').style.display = 'none';
-                document.getElementById('adminContainer').style.display = 'block';
-                initializeDashboard();
-            } else {
-                // Redirect to new login page if not authenticated
-                window.location.href = 'admin-login.html';
-            }
-        })
-        .catch(() => {
-            // Redirect to new login page on error
-            window.location.href = 'admin-login.html';
-        });
-    } else {
-        // Redirect to new login page if no token
+async function handleLogout() {
+    try {
+        if (window.adminAuth && typeof window.adminAuth.logoutAdmin === 'function') {
+            await window.adminAuth.logoutAdmin();
+        } else {
+            var token = getAuthToken();
+            if (token) { try { await fetch('/admin/logout', { method: 'POST', headers: { 'Authorization': token } }); } catch (e) { /* ignore */ } }
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminData');
+        }
+        authToken = null;
+        currentAdmin = null;
+        if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+        showToast('Logged out', 'info');
+        setTimeout(function () { window.location.href = 'admin-login.html'; }, 400);
+    } catch (e) {
+        authToken = null;
+        currentAdmin = null;
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
         window.location.href = 'admin-login.html';
     }
 }
@@ -408,7 +461,12 @@ async function loadActivity() {
 
 async function loadSlots() {
     try {
-        slotsData = await apiCall('/parking/slots');
+        const floorFilter = document.getElementById('floorFilter')?.value;
+        let url = '/parking/slots';
+        if (floorFilter) {
+            url += '?floorNumber=' + floorFilter;
+        }
+        slotsData = await apiCall(url);
         // Check overdue status for each occupied slot
         await checkOverdueStatus();
         renderSlots();
@@ -441,38 +499,66 @@ function renderSlots() {
         return;
     }
     
-    grid.innerHTML = slotsData.map(slot => {
-        let statusClass = 'available';
-        let statusText = 'Available';
-        let statusIcon = 'fa-circle';
-        
-        if (slot.occupied) {
-            if (slot.overdue) {
-                statusClass = 'overdue';
-                statusText = 'Overdue';
-                statusIcon = 'fa-exclamation-triangle';
-            } else {
-                statusClass = 'occupied';
-                statusText = 'Occupied';
-                statusIcon = 'fa-car';
-            }
-        } else {
-            statusIcon = 'fa-check-circle';
+    // Group slots by floor
+    const slotsByFloor = {};
+    slotsData.forEach(slot => {
+        const floorNum = slot.floorNumber != null ? slot.floorNumber : 'No Floor';
+        if (!slotsByFloor[floorNum]) {
+            slotsByFloor[floorNum] = [];
         }
-        
+        slotsByFloor[floorNum].push(slot);
+    });
+    
+    // Render slots grouped by floor
+    grid.innerHTML = Object.keys(slotsByFloor).sort((a, b) => {
+        if (a === 'No Floor') return 1;
+        if (b === 'No Floor') return -1;
+        return parseInt(a) - parseInt(b);
+    }).map(floorNum => {
+        const floorSlots = slotsByFloor[floorNum];
         return `
-            <div class="slot-item ${statusClass}" onclick="showSlotDetail(${slot.slotNumber})">
-                <div class="slot-number">${slot.slotNumber}</div>
-                <div class="slot-status">
-                    <i class="fas ${statusIcon}"></i>
-                    <span>${statusText}</span>
+            <div class="floor-section">
+                <h3 class="floor-title">
+                    <i class="fas fa-building"></i>
+                    Floor ${floorNum}
+                </h3>
+                <div class="slots-grid-floor">
+                    ${floorSlots.map(slot => {
+                        let statusClass = 'available';
+                        let statusText = 'Available';
+                        let statusIcon = 'fa-circle';
+                        
+                        if (slot.occupied) {
+                            if (slot.overdue) {
+                                statusClass = 'overdue';
+                                statusText = 'Overdue';
+                                statusIcon = 'fa-exclamation-triangle';
+                            } else {
+                                statusClass = 'occupied';
+                                statusText = 'Occupied';
+                                statusIcon = 'fa-car';
+                            }
+                        } else {
+                            statusIcon = 'fa-check-circle';
+                        }
+                        
+                        return `
+                            <div class="slot-item ${statusClass}" onclick="showSlotDetail(${slot.slotNumber}, ${slot.floorNumber || 'null'})">
+                                <div class="slot-number">${slot.slotNumber}</div>
+                                <div class="slot-status">
+                                    <i class="fas ${statusIcon}"></i>
+                                    <span>${statusText}</span>
+                                </div>
+                                ${slot.occupied ? `
+                                    <div class="slot-vehicle">
+                                        <i class="${getVehicleTypeIcon(slot.vehicleType)}"></i>
+                                        <span>${slot.licensePlate || 'N/A'}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                ${slot.occupied ? `
-                    <div class="slot-vehicle">
-                        <i class="${getVehicleTypeIcon(slot.vehicleType)}"></i>
-                        <span>${slot.licensePlate || 'N/A'}</span>
-                    </div>
-                ` : ''}
             </div>
         `;
     }).join('');
@@ -481,11 +567,15 @@ function renderSlots() {
 let currentSlotDetail = null;
 let slotHistoryData = [];
 
-async function showSlotDetail(slotNumber) {
+async function showSlotDetail(slotNumber, floorNumber) {
     try {
         // Load slot detail and history in parallel
+        let detailUrl = `/admin/slots/${slotNumber}`;
+        if (floorNumber != null) {
+            detailUrl += `?floorNumber=${floorNumber}`;
+        }
         const [detail, history] = await Promise.all([
-            apiCall(`/admin/slots/${slotNumber}`),
+            apiCall(detailUrl),
             apiCall(`/admin/slots/${slotNumber}/history?limit=5`).catch(() => [])
         ]);
         
@@ -494,6 +584,15 @@ async function showSlotDetail(slotNumber) {
         
         const modal = document.getElementById('slotModal');
         const body = document.getElementById('slotModalBody');
+        
+        if (!modal) {
+            console.error('Slot modal not found');
+            return;
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+        modal.classList.add('show');
         
         if (detail.occupied) {
             body.innerHTML = `
@@ -675,7 +774,8 @@ async function showSlotDetail(slotNumber) {
             `;
         }
         
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
+        modal.classList.add('show');
     } catch (error) {
         console.error('Error loading slot details:', error);
         showToast('Failed to load slot details: ' + (error.message || 'Unknown error'), 'error');
@@ -683,7 +783,11 @@ async function showSlotDetail(slotNumber) {
 }
 
 function closeSlotModal() {
-    document.getElementById('slotModal').style.display = 'none';
+    const modal = document.getElementById('slotModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
     currentSlotDetail = null;
     slotHistoryData = [];
 }
@@ -692,13 +796,17 @@ function closeSlotModal() {
 // SLOT ADMIN ACTIONS
 // ============================================
 
-async function handleForceExit(slotNumber) {
-    if (!confirm(`Are you sure you want to force exit the vehicle from slot ${slotNumber}?`)) {
+async function handleForceExit(slotNumber, floorNumber) {
+    if (!confirm(`Are you sure you want to force exit the vehicle from slot ${slotNumber}${floorNumber != null ? ' on floor ' + floorNumber : ''}?`)) {
         return;
     }
     
     try {
-        const response = await apiCall(`/admin/override/force-exit?slotNumber=${slotNumber}`, {
+        let url = `/admin/override/force-exit?slotNumber=${slotNumber}`;
+        if (floorNumber != null) {
+            url += `&floorNumber=${floorNumber}`;
+        }
+        const response = await apiCall(url, {
             method: 'POST'
         });
         
@@ -1387,6 +1495,142 @@ function showTab(tabName) {
         case 'analytics':
             loadAnalytics();
             break;
+        case 'floor-management':
+            loadFloors();
+            loadFloorOptions();
+            break;
+    }
+}
+
+// ============================================
+// FLOOR MANAGEMENT
+// ============================================
+
+async function loadFloors() {
+    try {
+        floorsData = await apiCall('/admin/floors');
+        renderFloors();
+    } catch (error) {
+        console.error('Error loading floors:', error);
+        showToast('Failed to load floors', 'error');
+    }
+}
+
+function renderFloors() {
+    const floorsList = document.getElementById('floorsList');
+    if (!floorsList) return;
+    
+    if (!floorsData || floorsData.length === 0) {
+        floorsList.innerHTML = '<div class="empty-state"><i class="fas fa-building"></i><p>No floors created yet. Add a new floor to get started.</p></div>';
+        return;
+    }
+    
+    floorsList.innerHTML = floorsData.map(floor => `
+        <div class="floor-card">
+            <div class="floor-header">
+                <div class="floor-info">
+                    <h3>
+                        <i class="fas fa-building"></i>
+                        Floor ${floor.floorNumber}
+                    </h3>
+                    ${floor.description ? `<p class="floor-description">${floor.description}</p>` : ''}
+                </div>
+                <div class="floor-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="viewFloorSlots(${floor.floorNumber})">
+                        <i class="fas fa-eye"></i>
+                        View Slots
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadFloorOptions() {
+    try {
+        const floors = await apiCall('/admin/floors');
+        const floorFilter = document.getElementById('floorFilter');
+        const slotFloorNumber = document.getElementById('slotFloorNumber');
+        
+        const updateSelect = (select) => {
+            if (!select) return;
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Select Floor --</option>' +
+                floors.map(f => `<option value="${f.floorNumber}">Floor ${f.floorNumber}${f.description ? ' - ' + f.description : ''}</option>`).join('');
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        };
+        
+        updateSelect(floorFilter);
+        updateSelect(slotFloorNumber);
+    } catch (error) {
+        console.error('Error loading floor options:', error);
+    }
+}
+
+async function handleAddFloor(event) {
+    event.preventDefault();
+    const floorNumber = parseInt(document.getElementById('floorNumber').value);
+    const description = document.getElementById('floorDescription').value.trim();
+    
+    try {
+        let url = `/admin/floors?floorNumber=${floorNumber}`;
+        if (description) {
+            url += `&description=${encodeURIComponent(description)}`;
+        }
+        
+        await apiCall(url, {
+            method: 'POST'
+        });
+        
+        showToast(`Floor ${floorNumber} created successfully!`, 'success');
+        document.getElementById('addFloorForm').reset();
+        loadFloors();
+        loadFloorOptions();
+    } catch (error) {
+        console.error('Floor creation error:', error);
+        console.error('Error details:', error.message, error.stack);
+        showToast('Failed to create floor: ' + (error.message || 'Unknown error'), 'error');
+    }
+}
+
+async function handleAddSlots(event) {
+    event.preventDefault();
+    const floorNumber = parseInt(document.getElementById('slotFloorNumber').value);
+    const vehicleType = document.getElementById('slotVehicleType').value;
+    const startSlotNumber = parseInt(document.getElementById('startSlotNumber').value);
+    const numberOfSlots = parseInt(document.getElementById('numberOfSlots').value);
+    
+    if (!floorNumber || !vehicleType || !startSlotNumber || !numberOfSlots) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    try {
+        const response = await apiCall(
+            `/admin/slots/add?floorNumber=${floorNumber}&vehicleType=${vehicleType}&startSlotNumber=${startSlotNumber}&numberOfSlots=${numberOfSlots}`,
+            { method: 'POST' }
+        );
+        
+        showToast(`Successfully added ${numberOfSlots} ${vehicleType} slots to Floor ${floorNumber}!`, 'success');
+        document.getElementById('addSlotsForm').reset();
+        loadSlots();
+    } catch (error) {
+        showToast('Failed to add slots: ' + (error.message || 'Unknown error'), 'error');
+    }
+}
+
+async function viewFloorSlots(floorNumber) {
+    try {
+        const slots = await apiCall(`/admin/floors/${floorNumber}/slots`);
+        const slotsInfo = slots.map(s => 
+            `Slot ${s.slotNumber} (${s.vehicleType}) - ${s.occupied ? 'Occupied' : 'Available'}`
+        ).join('\n');
+        
+        alert(`Slots on Floor ${floorNumber}:\n\n${slotsInfo || 'No slots on this floor'}`);
+    } catch (error) {
+        showToast('Failed to load floor slots: ' + (error.message || 'Unknown error'), 'error');
     }
 }
 
@@ -1428,6 +1672,12 @@ function loadTheme() {
 // ============================================
 
 function initializeDashboard() {
+    // Ensure slot modal is hidden on dashboard initialization
+    const slotModal = document.getElementById('slotModal');
+    if (slotModal) {
+        slotModal.style.display = 'none';
+        slotModal.classList.remove('show');
+    }
     // Start auto-refresh for slots (every 8 seconds)
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
@@ -1445,6 +1695,7 @@ function initializeDashboard() {
     loadActivity();
     loadSlots();
     loadCharges();
+    loadFloorOptions();
     
     // Auto-refresh every 10 seconds
     if (autoRefreshInterval) {
@@ -1490,14 +1741,10 @@ function updateCurrentTime() {
 
 document.addEventListener('DOMContentLoaded', function() {
     loadTheme();
-    checkAuth();
-    
-    // Close modal when clicking outside
+    // Auth is handled by checkAuthOnLoad (uses authGuard; supports backend + Supabase)
     window.onclick = function(event) {
-        const modal = document.getElementById('slotModal');
-        if (event.target === modal) {
-            closeSlotModal();
-        }
+        var modal = document.getElementById('slotModal');
+        if (modal && event.target === modal) closeSlotModal();
     };
 });
 
@@ -1521,3 +1768,7 @@ window.loadAnalytics = loadAnalytics;
 window.forceExitVehicle = forceExitVehicle;
 window.updateLicensePlate = updateLicensePlate;
 window.changeSlot = changeSlot;
+window.handleAddFloor = handleAddFloor;
+window.handleAddSlots = handleAddSlots;
+window.loadFloors = loadFloors;
+window.viewFloorSlots = viewFloorSlots;

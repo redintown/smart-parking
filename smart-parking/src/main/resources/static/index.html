@@ -28,7 +28,7 @@
                 </div>
                 <p class="subtitle">Intelligent Vehicle Management System</p>
                 <div class="header-actions">
-                    <a href="admin-login.html" class="admin-link">
+                    <a href="#" class="admin-link" id="adminDashboardBtn" onclick="handleAdminDashboardClick(event)">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>Admin Dashboard</span>
                     </a>
@@ -246,6 +246,11 @@
                         </div>
                     </div>
                     
+                    <!-- Floor selector: [ All Floors | Floor 1 | Floor 2 | ... ] - populated by slots.js -->
+                    <div id="floorSelector" class="floor-selector"></div>
+                    <!-- Small heading above slots when a specific floor is selected -->
+                    <div id="slotsFloorHeading" class="slots-floor-heading" style="display: none;"></div>
+                    
                     <!-- Slots Grid -->
                     <div class="slots-grid" id="slotsGrid">
                         <!-- Slots will be dynamically generated here -->
@@ -381,7 +386,8 @@
         </footer>
     </div>
 
-    <!-- JavaScript -->
+    <!-- Supabase removed to avoid pa.bundle.js / onUpdated errors. Auth uses backend via auth-guard. -->
+    <script src="auth-guard.js"></script>
     <script src="script.js"></script>
     <script src="slots.js"></script>
 </body>

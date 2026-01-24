@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Smart Parking Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/admin-login.css">
+    <style>
+        .back-link.disabled { pointer-events: none; opacity: 0.5; cursor: not-allowed; }
+        .resend-row { margin-top: 0.75rem; text-align: center; }
+        .resend-row .btn-resend { background: transparent; color: var(--orange-primary); border: 1px solid var(--orange-primary); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .resend-row .btn-resend:hover:not(:disabled) { background: rgba(249,115,22,0.1); }
+        .resend-row .btn-resend:disabled { opacity: 0.6; cursor: not-allowed; }
+        .verify-email-block { margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-left">
+            <div class="illustration-wrapper">
+                <div class="bg-shapes">
+                    <div class="shape shape-1"></div>
+                    <div class="shape shape-2"></div>
+                    <div class="shape shape-3"></div>
+                </div>
+                <div class="illustration-content">
+                    <div class="logo-large">
+                        <div class="logo-icon"><i class="fas fa-parking"></i></div>
+                        <h1>Smart Parking</h1>
+                        <p class="tagline">Verify your email</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="login-right">
+            <div class="login-card">
+                <a href="admin-login.html" class="back-link disabled" id="backToLogin" title="Complete verification first"><i class="fas fa-arrow-left"></i><span>Back to Login</span></a>
+                <div class="form-wrapper">
+                    <div class="form-header">
+                        <h2 id="formTitle">Verify Your Email</h2>
+                        <p id="formSubtitle">We've sent a 6-digit OTP to your email</p>
+                    </div>
+                    <form id="verifyForm" class="login-form" onsubmit="return handleVerify(event);">
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <i class="input-icon fas fa-envelope"></i>
+                                <input type="email" id="verifyEmail" class="form-input" placeholder=" " required autocomplete="email">
+                                <label for="verifyEmail" class="input-label">Email</label>
+                            </div>
+                        </div>
+                        <div id="sendOtpRow" style="display: none;">
+                            <button type="button" class="login-button" id="sendOtpToEmailBtn">Send verification OTP</button>
+                            <p id="step1SignupPrompt" style="margin-top:0.75rem;font-size:0.9rem;">Need to sign up? <a href="admin-signup.html">Sign up</a></p>
+                        </div>
+                        <div id="verifyOtpSection" style="display: none;">
+                            <div class="form-group">
+                                <div class="input-wrapper">
+                                    <i class="input-icon fas fa-key"></i>
+                                    <input type="text" id="verifyOtp" class="form-input" placeholder=" " inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" autofocus>
+                                    <label for="verifyOtp" class="input-label">6-digit OTP</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="login-button" id="verifyButton">
+                                <span class="button-text">Verify</span>
+                                <span class="button-loader" id="verifyButtonLoader" style="display: none;"><i class="fas fa-spinner fa-spin"></i></span>
+                            </button>
+                            <div class="resend-row">
+                                <button type="button" class="btn-resend" id="resendOtpBtn">Resend OTP</button>
+                                <span id="resendCountdown" style="display: none; margin-left: 0.5rem; font-size: 0.9rem; color: var(--text-light-secondary);"></span>
+                            </div>
+                        </div>
+                        <div class="error-message" id="verifyErrorMessage" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="verifyErrorText"></span>
+                        </div>
+                        <div class="success-message" id="verifySuccessMessage" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Email verified. Redirecting to login...</span>
+                        </div>
+                    </form>
+                </div>
+                <div class="form-footer">
+                    <p>&copy; 2026 Smart Parking System.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Supabase JS v2 for verifyOtp and signInWithOtp -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="verify-email.js"></script>
+</body>
+</html>

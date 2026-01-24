@@ -25,20 +25,22 @@ public class ParkingController {
     public ResponseEntity<?> park(
             @RequestParam String licensePlate,
             @RequestParam String vehicleType,
-            @RequestParam(required = false) Integer preferredSlot) {
+            @RequestParam(required = false) Integer preferredSlot,
+            @RequestParam(required = false) Integer floorNumber) {
 
         try {
             ParkingRecord record;
             if (preferredSlot != null && preferredSlot > 0) {
                 // Try to park in the preferred slot (AI suggestion)
-                record = parkingServiceDB.parkVehicleInSlot(licensePlate, vehicleType, preferredSlot);
+                record = parkingServiceDB.parkVehicleInSlot(licensePlate, vehicleType, preferredSlot, floorNumber);
             } else {
                 // Use default behavior (find first available)
                 record = parkingServiceDB.parkVehicle(licensePlate, vehicleType);
             }
 
             String message = vehicleType + " parked at slot "
-                    + record.getSlotNumber();
+                    + record.getSlotNumber()
+                    + (record.getFloorNumber() != null ? " on floor " + record.getFloorNumber() : "");
 
             return ResponseEntity.ok(message);
 
@@ -49,11 +51,13 @@ public class ParkingController {
 
     // ================= EXIT BY SLOT =================
     @PostMapping("/exit-by-slot")
-    public ResponseEntity<?> exitBySlot(@RequestParam int slotNumber) {
+    public ResponseEntity<?> exitBySlot(
+            @RequestParam int slotNumber,
+            @RequestParam(required = false) Integer floorNumber) {
 
         try {
             ParkingRecord record =
-                    parkingServiceDB.exitVehicleBySlot(slotNumber);
+                    parkingServiceDB.exitVehicleBySlot(slotNumber, floorNumber);
 
             ExitDTO exitDTO = new ExitDTO(
                     record.getVehicleType(),
@@ -75,9 +79,15 @@ public class ParkingController {
 
     // ================= GET ALL SLOTS =================
     @GetMapping("/slots")
-    public ResponseEntity<List<SlotDTO>> getAllSlots() {
+    public ResponseEntity<List<SlotDTO>> getAllSlots(
+            @RequestParam(required = false) Integer floorNumber) {
         try {
-            List<SlotDTO> slots = parkingServiceDB.getAllSlots();
+            List<SlotDTO> slots;
+            if (floorNumber != null) {
+                slots = parkingServiceDB.getAllSlotsByFloor(floorNumber);
+            } else {
+                slots = parkingServiceDB.getAllSlots();
+            }
             return ResponseEntity.ok(slots);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
